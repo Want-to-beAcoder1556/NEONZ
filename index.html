@@ -284,7 +284,7 @@
         <div id="points-display">Points: <span id="points">0</span></div>
         <div id="ammo-display">
             Ammo: <span id="current-ammo-text" style="color: #f1c40f;">Normal</span>
-            <div style="font-size: 13px; color: #aaa; font-weight: normal; margin-top: 4px;">Press 1, 2, 3, 4, 5 to swap</div>
+            <div style="font-size: 13px; color: #aaa; font-weight: normal; margin-top: 4px;">Press 1, 2, 3, 4, 5, 6 to swap</div>
         </div>
         <div id="health-bar-container">
             <div id="health-bar"></div>
@@ -423,8 +423,9 @@
         let savedBreakingUnlocked = false;
         let savedTurretLvl = 0;
         let savedPiercingLvl = 0;
+        let savedSpinUnlocked = false;
 
-        let currentAmmo = 0; // 0 = Normal, 1 = Tracker, 2 = Slap, 3 = Breaking, 4 = Piercing
+        let currentAmmo = 0; // 0 = Normal, 1 = Tracker, 2 = Slap, 3 = Breaking, 4 = Piercing, 5 = Spin
 
         // --- Save System Logic ---
         function saveGame() {
@@ -432,7 +433,7 @@
             const gameData = {
                 score, points, kills, wave,
                 fireRateCost, multiShotCost, trackerCost, healthCost, shieldCost, slapCost, breakingCost, turretCost, piercingCost,
-                savedFireRateLvl, savedBarrels, savedTrackerLvl, savedMaxHealth, savedShieldLvl, savedSlapUnlocked, savedBreakingUnlocked, savedTurretLvl, savedPiercingLvl
+                savedFireRateLvl, savedBarrels, savedTrackerLvl, savedMaxHealth, savedShieldLvl, savedSlapUnlocked, savedBreakingUnlocked, savedTurretLvl, savedPiercingLvl, savedSpinUnlocked
             };
             
             try {
@@ -471,6 +472,7 @@
                     savedBreakingUnlocked = data.savedBreakingUnlocked === true;
                     savedTurretLvl = data.savedTurretLvl || 0;
                     savedPiercingLvl = data.savedPiercingLvl || 0;
+                    savedSpinUnlocked = data.savedSpinUnlocked === true;
                 } catch (e) {
                     console.error("Save file could not be loaded", e);
                 }
@@ -509,6 +511,7 @@
             if (e.key === '3' && player.slapUnlocked) setAmmo(2);
             if (e.key === '4' && player.breakingUnlocked) setAmmo(3);
             if (e.key === '5' && player.piercingLvl > 0) setAmmo(4);
+            if (e.key === '6' && player.spinUnlocked) setAmmo(5);
 
             if (keys.hasOwnProperty(e.key)) keys[e.key] = true; 
         });
@@ -540,6 +543,9 @@
             } else if (type === 4) {
                 textEl.innerText = 'Piercing [5]';
                 textEl.style.color = '#ffff00'; // Bright Yellow
+            } else if (type === 5) {
+                textEl.innerText = 'Spin [6]';
+                textEl.style.color = '#ff00ff'; // Magenta
             }
         }
 
@@ -661,7 +667,7 @@
             const master = audioCtx.createGain();
             master.connect(masterGain);
 
-            if (type === 2 || type === 3 || type === 5) {
+            if (type === 2 || type === 3 || type === 99) {
                 // Use Noise for Slap, Breaking, and Turret
                 const noiseSrc = audioCtx.createBufferSource();
                 noiseSrc.buffer = noiseBuffer;
@@ -687,7 +693,7 @@
                     filter.frequency.setValueAtTime(4000, t);
                     master.gain.setValueAtTime(0.3, t); // Lowered volume
                     master.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-                } else { // Turret - light mechanical tap
+                } else { // Turret - light mechanical tap (99)
                     filter.type = 'highpass';
                     filter.frequency.setValueAtTime(5000, t);
                     master.gain.setValueAtTime(0.05, t); // Lowered volume
@@ -731,6 +737,12 @@
                     
                     master.gain.setValueAtTime(0.12, t); // Lowered volume
                     master.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+                } else if (type === 5) { // Spin Bullet - magical synth swirl
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1000, t);
+                    osc.frequency.linearRampToValueAtTime(3000, t + 0.15);
+                    master.gain.setValueAtTime(0.02, t); // WAY Lowered volume for the spin tornado!
+                    master.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
                 }
                 
                 osc.start(t);
@@ -883,6 +895,7 @@
                 this.breakingUnlocked = savedBreakingUnlocked;
                 this.turretLvl = savedTurretLvl;
                 this.piercingLvl = savedPiercingLvl;
+                this.spinUnlocked = savedSpinUnlocked;
             }
 
             draw() {
@@ -1005,6 +1018,9 @@
                         bulletColor = '#ffff00'; // Bright Yellow Piercing Bullet
                         bulletRadius = 5;
                         pierceCount = this.piercingLvl; // Lv 1 pierces 1 (hits 2), etc.
+                    } else if (currentAmmo === 5) {
+                        bulletColor = '#ff00ff'; // Magenta Spin Bullet
+                        bulletRadius = 5;
                     }
 
                     projectiles.push(new Projectile(startX, startY, bulletRadius, bulletColor, velocity, currentAmmo, this.trackerLvl, 1, pierceCount));
@@ -1040,12 +1056,17 @@
                 this.radius = radius;
                 this.color = color;
                 this.velocity = velocity;
-                this.type = type; // 0=normal, 1=tracker, 2=slap, 3=breaking, 4=piercing
+                this.type = type; // 0=normal, 1=tracker, 2=slap, 3=breaking, 4=piercing, 5=spin
                 this.trackerLvl = trackerLvl;
                 this.damage = damage;
                 this.pierceCount = pierceCount;
                 this.hitEnemies = new Set(); // Tracks which enemies this bullet has already hit so it doesn't hit them 60 times a second
                 this.splitTimer = type === 3 ? 20 : 0; // Split after ~0.3 seconds (20 frames)
+
+                // Used for Spin Bullet (Type 5)
+                this.baseSpeed = Math.hypot(velocity.x, velocity.y);
+                this.spinAngle = Math.atan2(velocity.y, velocity.x);
+                this.spinRadius = 25; // Starts just outside player body
             }
 
             draw() {
@@ -1090,8 +1111,17 @@
                     if (nearestToPlayer) this.steerTowards(nearestToPlayer, 0.45); // Faster turning speed
                 }
 
-                this.x += this.velocity.x;
-                this.y += this.velocity.y;
+                if (this.type === 5) {
+                    // Spin Bullet: Creates a tornado effect by orbiting the player and expanding outward
+                    this.spinAngle += 0.2; // Speed of rotation
+                    this.spinRadius += this.baseSpeed; // Outward expansion speed
+                    this.x = player.x + Math.cos(this.spinAngle) * this.spinRadius;
+                    this.y = player.y + Math.sin(this.spinAngle) * this.spinRadius;
+                } else {
+                    this.x += this.velocity.x;
+                    this.y += this.velocity.y;
+                }
+
                 this.draw();
             }
 
@@ -1166,7 +1196,7 @@
                 if (this.cooldown > 0) this.cooldown--;
                 
                 if (this.cooldown === 0 && nearest && minDist < 350) {
-                    playShootSound(5); // Special turret sound
+                    playShootSound(99); // Special turret sound
                     let velocity = { x: Math.cos(angleToEnemy) * 10, y: Math.sin(angleToEnemy) * 10 };
                     // Turret bullets deal exactly 0.5 damage
                     projectiles.push(new Projectile(this.x, this.y, 3, '#9b59b6', velocity, 0, 0, 0.5));
@@ -1460,6 +1490,13 @@
                 player.barrels = 100;
                 savedBarrels = 100;
                 applied = true;
+            } else if (code === "fullfire") {
+                player.fireRateLvl = 20;
+                savedFireRateLvl = 20;
+                player.spinUnlocked = true;
+                savedSpinUnlocked = true;
+                setAmmo(5); // Auto-equip the spin bullet
+                applied = true;
             }
 
             if (applied) {
@@ -1495,6 +1532,7 @@
             savedBreakingUnlocked = false;
             savedTurretLvl = 0;
             savedPiercingLvl = 0;
+            savedSpinUnlocked = false;
 
             // Reset all costs
             fireRateCost = 50;
@@ -1557,6 +1595,7 @@
             player.shieldHP = player.maxShield;
             player.turretLvl = savedTurretLvl;
             player.piercingLvl = savedPiercingLvl;
+            player.spinUnlocked = savedSpinUnlocked;
             
             projectiles = [];
             enemies = [];
