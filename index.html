@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zombie Survival</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+        }
+        #ui-container {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+        }
+        #score-display {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        #wave-display {
+            font-size: 22px;
+            font-weight: bold;
+            color: #e74c3c;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-top: 5px;
+        }
+        #points-display {
+            font-size: 20px;
+            font-weight: bold;
+            color: #f1c40f;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin-top: 5px;
+        }
+        #ammo-display {
+            margin-top: 15px; 
+            font-size: 18px; 
+            font-weight: bold; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.4);
+            padding: 10px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+        #health-bar-container {
+            width: 200px;
+            height: 20px;
+            background-color: #333;
+            border: 2px solid #555;
+            border-radius: 10px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+        #health-bar {
+            width: 100%;
+            height: 100%;
+            background-color: #4CAF50;
+            transition: width 0.2s, background-color 0.2s;
+        }
+        #shield-bar-container {
+            width: 200px;
+            height: 10px;
+            background-color: #333;
+            border: 2px solid #555;
+            border-radius: 5px;
+            margin-top: 5px;
+            overflow: hidden;
+            display: none;
+        }
+        #shield-bar {
+            width: 100%;
+            height: 100%;
+            background-color: #00ffff;
+            transition: width 0.2s;
+        }
+        #game-over-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 40px;
+            border-radius: 15px;
+            border: 2px solid #ff4444;
+            display: none;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.3);
+        }
+        #game-over-screen h1 {
+            color: #ff4444;
+            font-size: 48px;
+            margin: 0 0 20px 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        #final-score {
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+        button {
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        button:hover {
+            background-color: #ff6666;
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.5);
+            text-align: center;
+            pointer-events: none;
+        }
+        #wave-announcement {
+            position: absolute;
+            top: 25%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 60px;
+            font-weight: bold;
+            color: #e74c3c;
+            text-shadow: 0 0 20px rgba(231, 76, 60, 0.8);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            z-index: 5;
+        }
+        #pause-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #pause-btn:hover { background-color: #2980b9; }
+        #upgrade-menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 20, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            border: 2px solid #3498db;
+            display: none;
+            text-align: center;
+            min-width: 350px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 0 30px rgba(52, 152, 219, 0.3);
+            z-index: 10;
+        }
+
+        /* Custom scrollbar styling for the shop */
+        #upgrade-menu::-webkit-scrollbar {
+            width: 8px;
+        }
+        #upgrade-menu::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        #upgrade-menu::-webkit-scrollbar-thumb {
+            background: #3498db;
+            border-radius: 10px;
+        }
+        #upgrade-menu::-webkit-scrollbar-thumb:hover {
+            background: #2980b9;
+        }
+
+        #upgrade-menu h2 {
+            color: #3498db;
+            margin-top: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .upgrade-row {
+            margin: 25px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+            font-size: 18px;
+        }
+        .upgrade-btn {
+            background-color: #2ecc71;
+            padding: 10px 15px;
+            font-size: 14px;
+        }
+        .upgrade-btn:hover { background-color: #27ae60; }
+        .upgrade-btn:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+            color: #888;
+        }
+        #resume-btn {
+            background-color: #e74c3c;
+            width: 100%;
+            margin-top: 10px;
+        }
+        #resume-btn:hover { background-color: #c0392b; }
+
+        /* Cheat Box Styling */
+        #cheat-input:focus {
+            outline: none;
+            box-shadow: 0 0 5px #3498db;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="wave-announcement">WAVE 1</div>
+
+    <div id="ui-container">
+        <div id="score-display">Score: <span id="score">0</span></div>
+        <div id="wave-display">Wave: <span id="wave-text">1</span></div>
+        <div id="points-display">Points: <span id="points">0</span></div>
+        <div id="ammo-display">
+            Ammo: <span id="current-ammo-text" style="color: #f1c40f;">Normal</span>
+            <div style="font-size: 13px; color: #aaa; font-weight: normal; margin-top: 4px;">Press 1, 2, 3, 4, 5 to swap</div>
+        </div>
+        <div id="health-bar-container">
+            <div id="health-bar"></div>
+        </div>
+        <div id="shield-bar-container">
+            <div id="shield-bar"></div>
+        </div>
+    </div>
+
+    <div id="instructions">
+        WASD to Move | Mouse to Aim | Click or Space to Shoot | 1,2,3,4,5 to Swap Weapons
+    </div>
+
+    <div id="game-over-screen">
+        <h1>Game Over!</h1>
+        <div id="final-score">Final Score: <span>0</span></div>
+        <button id="restart-btn">Try Again</button>
+    </div>
+
+    <button id="pause-btn">Upgrades (E)</button>
+
+    <div id="upgrade-menu">
+        <h2>Upgrade Shop</h2>
+        <div class="upgrade-row">
+            <span>Faster Fire (Lv <span id="fire-rate-lvl">1</span>)</span>
+            <button class="upgrade-btn" id="btn-fire-rate">Buy: <span id="cost-fire-rate">50</span> pts</button>
+        </div>
+        <div class="upgrade-row">
+            <span>More Barrels (Lv <span id="multi-shot-lvl">1</span>)</span>
+            <button class="upgrade-btn" id="btn-multi-shot">Buy: <span id="cost-multi-shot">100</span> pts</button>
+        </div>
+        <div class="upgrade-row">
+            <span>Tracker Bullets (Lv <span id="tracker-lvl">0</span>)</span>
+            <button class="upgrade-btn" id="btn-tracker">Buy: <span id="cost-tracker">200</span> pts</button>
+        </div>
+        <div class="upgrade-row">
+            <span>Slap Bullet</span>
+            <button class="upgrade-btn" id="btn-slap">Unlock: <span id="cost-slap">300</span> pts</button>
+        </div>
+        <div class="upgrade-row">
+            <span>Breaking Bullet</span>
+            <button class="upgrade-btn" id="btn-breaking">Unlock: <span id="cost-breaking">400</span> pts</button>
+        </div>
+        <div class="upgrade-row">
+            <span>Piercing Bullet (Lv <span id="piercing-lvl">0</span>)</span>
+            <button class="upgrade-btn" id="btn-piercing">Buy: <span id="cost-piercing">500</span> pts</button>
+        </div>
+        <div class="upgrade-row">
+            <span>Max Health (Lv <span id="health-lvl">1</span>)</span>
+            <button class="upgrade-btn" id="btn-health">Buy: <span id="cost-health">150</span> pts</button>
+        </div>
+        <div class="upgrade-row">
+            <span>Energy Shield (Lv <span id="shield-lvl">0</span>)</span>
+            <button class="upgrade-btn" id="btn-shield">Buy: <span id="cost-shield">200</span> pts</button>
+        </div>
+        <div class="upgrade-row">
+            <span>Auto-Turret (Lv <span id="turret-lvl">0</span>)</span>
+            <button class="upgrade-btn" id="btn-turret">Buy: <span id="cost-turret">400</span> pts</button>
+        </div>
+        <button id="resume-btn">Resume Game</button>
+
+        <!-- Cheat Box Section -->
+        <div style="margin-top: 20px; border-top: 1px solid #555; padding-top: 20px; display: flex; gap: 10px;">
+            <input type="text" id="cheat-input" placeholder="Enter cheat code..." autocomplete="off" style="flex: 1; padding: 10px; background: #222; border: 1px solid #3498db; color: white; border-radius: 5px; font-size: 14px;">
+            <button id="cheat-btn" style="background-color: #3498db; padding: 10px 15px; font-size: 14px; border-radius: 5px;">Apply</button>
+        </div>
+
+        <div style="margin-top: 20px; border-top: 1px solid #555; padding-top: 20px;">
+            <button id="wipe-btn" style="background-color: #8e44ad; width: 100%; font-size: 16px;">Wipe Progress (Hard Reset)</button>
+            <div id="wipe-confirm-container" style="display: none; justify-content: space-between; align-items: center; gap: 10px;">
+                <span style="color: #ff4444; font-weight: bold; font-size: 14px;">Are you sure?</span>
+                <button id="wipe-yes-btn" style="background-color: #c0392b; padding: 10px; font-size: 14px; flex: 1;">YES</button>
+                <button id="wipe-no-btn" style="background-color: #7f8c8d; padding: 10px; font-size: 14px; flex: 1;">NO</button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const pointsElement = document.getElementById('points');
+        const healthBar = document.getElementById('health-bar');
+        const shieldBarContainer = document.getElementById('shield-bar-container');
+        const shieldBar = document.getElementById('shield-bar');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const finalScoreElement = document.querySelector('#final-score span');
+        const restartBtn = document.getElementById('restart-btn');
+        const waveTextElement = document.getElementById('wave-text');
+        const waveAnnouncement = document.getElementById('wave-announcement');
+
+        const wipeBtn = document.getElementById('wipe-btn');
+        const wipeConfirmContainer = document.getElementById('wipe-confirm-container');
+        const wipeYesBtn = document.getElementById('wipe-yes-btn');
+        const wipeNoBtn = document.getElementById('wipe-no-btn');
+
+        const cheatInput = document.getElementById('cheat-input');
+        const cheatBtn = document.getElementById('cheat-btn');
+
+        // Game State
+        let animationId;
+        let score = 0;
+        let points = 0;
+        let kills = 0;
+        let frames = 0;
+        let isGameOver = false;
+        let isPaused = false;
+        
+        let wave = 1;
+        let zombiesToSpawn = 0;
+        let zombiesSpawned = 0;
+        let isWaveResting = false;
+        let waveRestTimer = 0;
+        
+        let fireRateCost = 50;
+        let multiShotCost = 100;
+        let trackerCost = 200;
+        let healthCost = 150;
+        let shieldCost = 200;
+        let slapCost = 300;
+        let breakingCost = 400;
+        let turretCost = 400;
+        let piercingCost = 500;
+        
+        let savedFireRateLvl = 1;
+        let savedBarrels = 1;
+        let savedTrackerLvl = 0;
+        let savedMaxHealth = 100;
+        let savedShieldLvl = 0;
+        let savedSlapUnlocked = false;
+        let savedBreakingUnlocked = false;
+        let savedTurretLvl = 0;
+        let savedPiercingLvl = 0;
+
+        let currentAmmo = 0; // 0 = Normal, 1 = Tracker, 2 = Slap, 3 = Breaking, 4 = Piercing
+
+        // --- Save System Logic ---
+        function saveGame() {
+            if (isGameOver) return; // Prevent overwriting the death reset save
+            const gameData = {
+                score, points, kills, wave,
+                fireRateCost, multiShotCost, trackerCost, healthCost, shieldCost, slapCost, breakingCost, turretCost, piercingCost,
+                savedFireRateLvl, savedBarrels, savedTrackerLvl, savedMaxHealth, savedShieldLvl, savedSlapUnlocked, savedBreakingUnlocked, savedTurretLvl, savedPiercingLvl
+            };
+            
+            try {
+                localStorage.setItem('zombieSurvivalSave', JSON.stringify(gameData));
+            } catch (e) {
+                console.warn("Browser blocked saving. This is normal in some preview windows.");
+            }
+        }
+
+        function loadGame() {
+            const savedData = localStorage.getItem('zombieSurvivalSave');
+            if (savedData) {
+                try {
+                    const data = JSON.parse(savedData);
+                    score = data.score || 0;
+                    points = data.points || 0;
+                    kills = data.kills || 0;
+                    wave = data.wave || 1;
+                    
+                    fireRateCost = data.fireRateCost || 50;
+                    multiShotCost = data.multiShotCost || 100;
+                    trackerCost = data.trackerCost || 200;
+                    healthCost = data.healthCost || 150;
+                    shieldCost = data.shieldCost || 200;
+                    slapCost = data.slapCost || 300;
+                    breakingCost = data.breakingCost || 400;
+                    turretCost = data.turretCost || 400;
+                    piercingCost = data.piercingCost || 500;
+
+                    savedFireRateLvl = data.savedFireRateLvl || 1;
+                    savedBarrels = data.savedBarrels || 1;
+                    savedTrackerLvl = data.savedTrackerLvl || 0;
+                    savedMaxHealth = data.savedMaxHealth || 100;
+                    savedShieldLvl = data.savedShieldLvl || 0;
+                    savedSlapUnlocked = data.savedSlapUnlocked === true;
+                    savedBreakingUnlocked = data.savedBreakingUnlocked === true;
+                    savedTurretLvl = data.savedTurretLvl || 0;
+                    savedPiercingLvl = data.savedPiercingLvl || 0;
+                } catch (e) {
+                    console.error("Save file could not be loaded", e);
+                }
+            }
+        }
+        // -------------------------
+
+        // Resize Canvas
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Input Tracking
+        const keys = {
+            w: false, a: false, s: false, d: false,
+            ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false,
+            " ": false // Spacebar
+        };
+        const mouse = { x: canvas.width / 2, y: canvas.height / 2, isDown: false };
+
+        window.addEventListener('keydown', e => { 
+            // Prevent hotkeys from triggering if the user is typing in the cheat box
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                if (e.key === 'Enter') cheatBtn.click();
+                return; 
+            }
+
+            if (e.key.toLowerCase() === 'e') togglePause();
+            
+            // Bullet Swapping hotkeys
+            if (e.key === '1') setAmmo(0);
+            if (e.key === '2' && player.trackerLvl > 0) setAmmo(1);
+            if (e.key === '3' && player.slapUnlocked) setAmmo(2);
+            if (e.key === '4' && player.breakingUnlocked) setAmmo(3);
+            if (e.key === '5' && player.piercingLvl > 0) setAmmo(4);
+
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = true; 
+        });
+
+        window.addEventListener('keyup', e => { 
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') return; 
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = false; 
+        });
+        window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+        window.addEventListener('mousedown', () => mouse.isDown = true);
+        window.addEventListener('mouseup', () => mouse.isDown = false);
+
+        // Change Ammo Type visually
+        function setAmmo(type) {
+            currentAmmo = type;
+            const textEl = document.getElementById('current-ammo-text');
+            if (type === 0) {
+                textEl.innerText = 'Normal [1]';
+                textEl.style.color = '#f1c40f'; // Yellow
+            } else if (type === 1) {
+                textEl.innerText = 'Tracker [2]';
+                textEl.style.color = '#00ffff'; // Cyan
+            } else if (type === 2) {
+                textEl.innerText = 'Slap [3]';
+                textEl.style.color = '#ff69b4'; // Pink
+            } else if (type === 3) {
+                textEl.innerText = 'Breaking [4]';
+                textEl.style.color = '#e67e22'; // Orange
+            } else if (type === 4) {
+                textEl.innerText = 'Piercing [5]';
+                textEl.style.color = '#ffff00'; // Bright Yellow
+            }
+        }
+
+        // Classes
+        class Player {
+            constructor(x, y, radius, color) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.color = color;
+                this.speed = 4;
+                this.maxHealth = savedMaxHealth;
+                this.health = this.maxHealth;
+                this.shieldLvl = savedShieldLvl;
+                this.maxShield = this.shieldLvl * 50;
+                this.shieldHP = this.maxShield;
+                this.shieldRegenTimer = 0;
+                this.angle = 0;
+                this.shootCooldown = 0;
+                this.fireRateLvl = savedFireRateLvl;
+                this.barrels = 1;
+                this.trackerLvl = 0;
+                this.slapUnlocked = savedSlapUnlocked;
+                this.breakingUnlocked = savedBreakingUnlocked;
+                this.turretLvl = savedTurretLvl;
+                this.piercingLvl = savedPiercingLvl;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                
+                // Draw Shield forcefield
+                if (this.shieldHP > 0) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius + 8, 0, Math.PI * 2, false);
+                    ctx.strokeStyle = `rgba(0, 255, 255, ${Math.max(0.3, this.shieldHP / this.maxShield)})`;
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+
+                ctx.rotate(this.angle);
+                
+                // Body
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2, false);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#2980b9';
+                ctx.stroke();
+
+                // Gun
+                ctx.beginPath();
+                const gunWidth = 8 + (this.barrels - 1) * 4;
+                ctx.rect(0, -gunWidth / 2, this.radius + 10, gunWidth);
+                ctx.fillStyle = '#7f8c8d';
+                ctx.fill();
+                
+                ctx.restore();
+            }
+
+            update() {
+                // Movement
+                let dx = 0;
+                let dy = 0;
+                if (keys.w || keys.ArrowUp) dy -= 1;
+                if (keys.s || keys.ArrowDown) dy += 1;
+                if (keys.a || keys.ArrowLeft) dx -= 1;
+                if (keys.d || keys.ArrowRight) dx += 1;
+
+                // Normalize diagonal movement
+                if (dx !== 0 && dy !== 0) {
+                    const length = Math.sqrt(dx * dx + dy * dy);
+                    dx /= length;
+                    dy /= length;
+                }
+
+                this.x += dx * this.speed;
+                this.y += dy * this.speed;
+
+                // Keep in bounds
+                this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
+                this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+
+                // Shield Regeneration
+                if (this.shieldLvl > 0) {
+                    if (this.shieldRegenTimer > 0) {
+                        this.shieldRegenTimer--;
+                    } else if (this.shieldHP < this.maxShield) {
+                        this.shieldHP = Math.min(this.maxShield, this.shieldHP + 0.5); // Regen shield
+                        if (frames % 5 === 0) updateHealthBar();
+                    }
+                }
+
+                // Aiming
+                this.angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+
+                // Shooting
+                if (this.shootCooldown > 0) this.shootCooldown--;
+                if ((mouse.isDown || keys[" "]) && this.shootCooldown <= 0 && !isPaused) {
+                    this.shoot();
+                    if (currentAmmo === 3) {
+                        this.shootCooldown += 18; // 0.3s cooldown (at 60 FPS) for breaking bullets
+                    } else {
+                        let currentMaxCooldown = 10 - (this.fireRateLvl - 1) * 0.47; // Max Lv 20
+                        this.shootCooldown += currentMaxCooldown;
+                        if (this.shootCooldown < 0) this.shootCooldown = currentMaxCooldown; // Safe guard
+                    }
+                }
+
+                this.draw();
+            }
+
+            shoot() {
+                // Prevent game from lagging by limiting total bullets on screen
+                if (projectiles.length > 1500) return;
+
+                const spread = 0.15; // Spread angle in radians for multiple barrels
+                for (let i = 0; i < this.barrels; i++) {
+                    const angleOffset = (i - (this.barrels - 1) / 2) * spread;
+                    const finalAngle = this.angle + angleOffset;
+                    
+                    const velocity = {
+                        x: Math.cos(finalAngle) * 12,
+                        y: Math.sin(finalAngle) * 12
+                    };
+                    const startX = this.x + Math.cos(finalAngle) * (this.radius + 10);
+                    const startY = this.y + Math.sin(finalAngle) * (this.radius + 10);
+                    
+                    let bulletColor = '#f1c40f';
+                    let bulletRadius = 4;
+                    let pierceCount = 0;
+
+                    if (currentAmmo === 1) {
+                        bulletColor = '#00ffff'; 
+                    } else if (currentAmmo === 2) {
+                        bulletColor = '#ff69b4'; // Hot Pink Slap Bullet
+                        bulletRadius = 12;       // Much bigger size!
+                    } else if (currentAmmo === 3) {
+                        bulletColor = '#e67e22'; // Orange Breaking Bullet
+                        bulletRadius = 8;
+                    } else if (currentAmmo === 4) {
+                        bulletColor = '#ffff00'; // Bright Yellow Piercing Bullet
+                        bulletRadius = 5;
+                        pierceCount = this.piercingLvl; // Lv 1 pierces 1 (hits 2), etc.
+                    }
+
+                    projectiles.push(new Projectile(startX, startY, bulletRadius, bulletColor, velocity, currentAmmo, this.trackerLvl, 1, pierceCount));
+                }
+            }
+
+            takeDamage(amount) {
+                this.shieldRegenTimer = 120; // Wait 2 seconds before regenerating
+                if (this.shieldHP > 0) {
+                    this.shieldHP -= amount;
+                    if (this.shieldHP < 0) {
+                        this.health += this.shieldHP; // Spillover damage to health
+                        this.shieldHP = 0;
+                    }
+                } else {
+                    this.health -= amount;
+                }
+
+                updateHealthBar();
+                if (this.health <= 0) {
+                    endGame();
+                }
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, radius, color, velocity, type = 0, trackerLvl = 0, damage = 1, pierceCount = 0) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.color = color;
+                this.velocity = velocity;
+                this.type = type; // 0=normal, 1=tracker, 2=slap, 3=breaking, 4=piercing
+                this.trackerLvl = trackerLvl;
+                this.damage = damage;
+                this.pierceCount = pierceCount;
+                this.hitEnemies = new Set(); // Tracks which enemies this bullet has already hit so it doesn't hit them 60 times a second
+                this.splitTimer = type === 3 ? 20 : 0; // Split after ~0.3 seconds (20 frames)
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                // Note: The glow/shadow effect was removed here because it causes 
+                // massive lag when firing hundreds of bullets at once!
+            }
+
+            update() {
+                // Tracking Logic
+                if (this.type === 1 && this.trackerLvl > 0 && enemies.length > 0) {
+                    // Normal Tracker: Finds closest enemy to the BULLET
+                    let nearest = null;
+                    let minDist = Infinity;
+                    
+                    for (let e of enemies) {
+                        let d = Math.hypot(e.x - this.x, e.y - this.y);
+                        if (d < minDist) {
+                            minDist = d;
+                            nearest = e;
+                        }
+                    }
+                    if (nearest) this.steerTowards(nearest, 0.04 * this.trackerLvl);
+
+                } else if (this.type === 2 && enemies.length > 0) {
+                    // Slap Bullet: Finds closest enemy to the PLAYER, only if they are close
+                    let nearestToPlayer = null;
+                    let minDistToPlayer = Infinity;
+                    const slapDetectionRadius = 250; // How close a zombie needs to be to trigger homing
+                    
+                    for (let e of enemies) {
+                        let d = Math.hypot(e.x - player.x, e.y - player.y);
+                        if (d < minDistToPlayer && d < slapDetectionRadius) {
+                            minDistToPlayer = d;
+                            nearestToPlayer = e;
+                        }
+                    }
+                    if (nearestToPlayer) this.steerTowards(nearestToPlayer, 0.45); // Faster turning speed
+                }
+
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+                this.draw();
+            }
+
+            // Helper function to turn towards target smoothly
+            steerTowards(target, turnSpeed) {
+                let targetAngle = Math.atan2(target.y - this.y, target.x - this.x);
+                let currentAngle = Math.atan2(this.velocity.y, this.velocity.x);
+                
+                let diff = targetAngle - currentAngle;
+                // Normalize the angle difference
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                
+                currentAngle += Math.sign(diff) * Math.min(Math.abs(diff), turnSpeed);
+                
+                let speed = Math.hypot(this.velocity.x, this.velocity.y);
+                this.velocity.x = Math.cos(currentAngle) * speed;
+                this.velocity.y = Math.sin(currentAngle) * speed;
+            }
+        }
+
+        class Turret {
+            constructor(angleOffset) {
+                this.orbitAngle = angleOffset;
+                this.x = player.x;
+                this.y = player.y;
+                this.radius = 10;
+                this.cooldown = 0;
+                this.maxCooldown = 40; // Base firing rate for turret
+            }
+
+            update() {
+                // Orbit player
+                this.orbitAngle += 0.03;
+                this.x = player.x + Math.cos(this.orbitAngle) * 50;
+                this.y = player.y + Math.sin(this.orbitAngle) * 50;
+
+                let nearest = null;
+                let minDist = Infinity;
+                let angleToEnemy = this.orbitAngle; // Default facing
+
+                if (enemies.length > 0) {
+                    for (let e of enemies) {
+                        let d = Math.hypot(e.x - this.x, e.y - this.y);
+                        if (d < minDist) { minDist = d; nearest = e; }
+                    }
+                    if (nearest && minDist < 350) { // Turret shooting range
+                        angleToEnemy = Math.atan2(nearest.y - this.y, nearest.x - this.x);
+                    }
+                }
+
+                // Draw Turret Base
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+                ctx.fillStyle = '#9b59b6'; // Purple colored drone
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#8e44ad';
+                ctx.stroke();
+
+                // Draw Turret Gun Barrel
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(angleToEnemy);
+                ctx.beginPath();
+                ctx.rect(0, -3, 16, 6);
+                ctx.fillStyle = '#7f8c8d';
+                ctx.fill();
+                ctx.restore();
+
+                // Fire Logic
+                if (this.cooldown > 0) this.cooldown--;
+                
+                if (this.cooldown === 0 && nearest && minDist < 350) {
+                    let velocity = { x: Math.cos(angleToEnemy) * 10, y: Math.sin(angleToEnemy) * 10 };
+                    // Turret bullets deal exactly 0.5 damage
+                    projectiles.push(new Projectile(this.x, this.y, 3, '#9b59b6', velocity, 0, 0, 0.5));
+                    this.cooldown = this.maxCooldown;
+                }
+            }
+        }
+
+        class Enemy {
+            constructor(x, y, radius, color, velocity, speed, maxHealth = 2) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.color = color;
+                this.velocity = velocity;
+                this.speed = speed;
+                this.health = maxHealth; // Scales with waves
+                this.angle = 0;
+                this.attackCooldown = 0; // Cooldown timer for attacks
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+
+                // Zombie Body
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2, false);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#1e5f22';
+                ctx.stroke();
+
+                // Arms
+                ctx.beginPath();
+                ctx.rect(this.radius * 0.3, -this.radius * 0.8, this.radius, this.radius * 0.4);
+                ctx.rect(this.radius * 0.3, this.radius * 0.4, this.radius, this.radius * 0.4);
+                ctx.fillStyle = '#27ae60';
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.restore();
+            }
+
+            update() {
+                if (this.attackCooldown > 0) this.attackCooldown--;
+
+                // Move towards player
+                this.angle = Math.atan2(player.y - this.y, player.x - this.x);
+                this.velocity.x = Math.cos(this.angle) * this.speed;
+                this.velocity.y = Math.sin(this.angle) * this.speed;
+                
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+                this.draw();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, radius, color, velocity) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.color = color;
+                this.velocity = velocity;
+                this.alpha = 1;
+                this.friction = 0.98;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+
+            update() {
+                this.velocity.x *= this.friction;
+                this.velocity.y *= this.friction;
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+                this.alpha -= 0.02;
+                this.draw();
+            }
+        }
+
+        // Game Arrays
+        let player;
+        let projectiles = [];
+        let enemies = [];
+        let particles = [];
+        let turrets = [];
+
+        // --- Upgrades Logic ---
+        function togglePause() {
+            if (isGameOver) return;
+            isPaused = !isPaused;
+            const menu = document.getElementById('upgrade-menu');
+            if (isPaused) {
+                menu.style.display = 'block';
+                updateUpgradeUI();
+                
+                // Clear the cheat input box when opening the menu
+                cheatInput.value = "";
+                cheatInput.style.borderColor = "#3498db";
+            } else {
+                menu.style.display = 'none';
+                animate(); // resume
+            }
+        }
+
+        function updateUpgradeUI() {
+            const fireLvl = player.fireRateLvl;
+            document.getElementById('fire-rate-lvl').innerText = fireLvl + (fireLvl >= 20 ? " (MAX)" : "");
+            document.getElementById('cost-fire-rate').innerText = fireLvl >= 20 ? "MAX" : fireRateCost;
+            document.getElementById('btn-fire-rate').disabled = points < fireRateCost || fireLvl >= 20;
+            
+            document.getElementById('multi-shot-lvl').innerText = player.barrels + (player.barrels >= 100 ? " (MAX)" : "");
+            document.getElementById('cost-multi-shot').innerText = player.barrels >= 100 ? "MAX" : multiShotCost;
+            document.getElementById('btn-multi-shot').disabled = points < multiShotCost || player.barrels >= 100;
+            
+            document.getElementById('tracker-lvl').innerText = player.trackerLvl + (player.trackerLvl >= 3 ? " (MAX)" : "");
+            document.getElementById('cost-tracker').innerText = player.trackerLvl >= 3 ? "MAX" : trackerCost;
+            document.getElementById('btn-tracker').disabled = points < trackerCost || player.trackerLvl >= 3;
+
+            // Slap Bullet UI
+            document.getElementById('cost-slap').innerText = player.slapUnlocked ? "UNLOCKED" : slapCost;
+            document.getElementById('btn-slap').disabled = player.slapUnlocked || points < slapCost;
+            
+            // Breaking Bullet UI
+            document.getElementById('cost-breaking').innerText = player.breakingUnlocked ? "UNLOCKED" : breakingCost;
+            document.getElementById('btn-breaking').disabled = player.breakingUnlocked || points < breakingCost;
+
+            // Piercing Bullet UI
+            document.getElementById('piercing-lvl').innerText = player.piercingLvl + (player.piercingLvl >= 10 ? " (MAX)" : "");
+            document.getElementById('cost-piercing').innerText = player.piercingLvl >= 10 ? "MAX" : piercingCost;
+            document.getElementById('btn-piercing').disabled = points < piercingCost || player.piercingLvl >= 10;
+
+            const healthLvl = (player.maxHealth - 100) / 50 + 1;
+            document.getElementById('health-lvl').innerText = healthLvl;
+            document.getElementById('cost-health').innerText = healthCost;
+            document.getElementById('btn-health').disabled = points < healthCost;
+
+            document.getElementById('shield-lvl').innerText = player.shieldLvl + (player.shieldLvl >= 3 ? " (MAX)" : "");
+            document.getElementById('cost-shield').innerText = player.shieldLvl >= 3 ? "MAX" : shieldCost;
+            document.getElementById('btn-shield').disabled = points < shieldCost || player.shieldLvl >= 3;
+
+            document.getElementById('turret-lvl').innerText = player.turretLvl + (player.turretLvl >= 4 ? " (MAX)" : "");
+            document.getElementById('cost-turret').innerText = player.turretLvl >= 4 ? "MAX" : turretCost;
+            document.getElementById('btn-turret').disabled = points < turretCost || player.turretLvl >= 4;
+        }
+
+        document.getElementById('pause-btn').addEventListener('click', togglePause);
+        document.getElementById('resume-btn').addEventListener('click', togglePause);
+
+        document.getElementById('btn-fire-rate').addEventListener('click', () => {
+            if (points >= fireRateCost && player.fireRateLvl < 20) {
+                points -= fireRateCost;
+                fireRateCost = Math.floor(fireRateCost * 1.3); // Lowered multiplier so Lv 20 is reachable
+                player.fireRateLvl += 1;
+                savedFireRateLvl = player.fireRateLvl;
+                pointsElement.innerHTML = points;
+                updateUpgradeUI();
+            }
+        });
+
+        document.getElementById('btn-multi-shot').addEventListener('click', () => {
+            if (points >= multiShotCost && player.barrels < 100) {
+                points -= multiShotCost;
+                multiShotCost = Math.floor(multiShotCost * 1.5); // Lowered the multiplier so 100 is reachable!
+                player.barrels += 1;
+                savedBarrels = player.barrels;
+                pointsElement.innerHTML = points;
+                updateUpgradeUI();
+            }
+        });
+
+        document.getElementById('btn-tracker').addEventListener('click', () => {
+            if (points >= trackerCost && player.trackerLvl < 3) {
+                points -= trackerCost;
+                trackerCost = Math.floor(trackerCost * 2.5);
+                player.trackerLvl += 1;
+                savedTrackerLvl = player.trackerLvl;
+                pointsElement.innerHTML = points;
+                updateUpgradeUI();
+                // If they didn't have trackers before, auto-equip it to be helpful!
+                if (player.trackerLvl === 1 && currentAmmo !== 2) setAmmo(1);
+            }
+        });
+
+        document.getElementById('btn-slap').addEventListener('click', () => {
+            if (points >= slapCost && !player.slapUnlocked) {
+                points -= slapCost;
+                player.slapUnlocked = true;
+                savedSlapUnlocked = true;
+                pointsElement.innerHTML = points;
+                updateUpgradeUI();
+                setAmmo(2); // Auto-equip slap bullets!
+            }
+        });
+
+        document.getElementById('btn-breaking').addEventListener('click', () => {
+            if (points >= breakingCost && !player.breakingUnlocked) {
+                points -= breakingCost;
+                player.breakingUnlocked = true;
+                savedBreakingUnlocked = true;
+                pointsElement.innerHTML = points;
+                updateUpgradeUI();
+                setAmmo(3); // Auto-equip breaking bullets!
+            }
+        });
+
+        document.getElementById('btn-piercing').addEventListener('click', () => {
+            if (points >= piercingCost && player.piercingLvl < 10) {
+                points -= piercingCost;
+                piercingCost = Math.floor(piercingCost * 1.5);
+                player.piercingLvl += 1;
+                savedPiercingLvl = player.piercingLvl;
+                pointsElement.innerHTML = points;
+                updateUpgradeUI();
+                if (player.piercingLvl === 1 && currentAmmo !== 4) setAmmo(4); // Auto-equip piercing bullets!
+            }
+        });
+
+        document.getElementById('btn-health').addEventListener('click', () => {
+            if (points >= healthCost) {
+                points -= healthCost;
+                healthCost = Math.floor(healthCost * 1.5);
+                player.maxHealth += 50;
+                player.health = player.maxHealth; // Full heal when upgrading health!
+                savedMaxHealth = player.maxHealth;
+                pointsElement.innerHTML = points;
+                updateHealthBar();
+                updateUpgradeUI();
+            }
+        });
+
+        document.getElementById('btn-shield').addEventListener('click', () => {
+            if (points >= shieldCost && player.shieldLvl < 3) {
+                points -= shieldCost;
+                shieldCost = Math.floor(shieldCost * 1.5);
+                player.shieldLvl += 1;
+                player.maxShield = player.shieldLvl * 50;
+                player.shieldHP = player.maxShield;
+                savedShieldLvl = player.shieldLvl;
+                pointsElement.innerHTML = points;
+                updateHealthBar();
+                updateUpgradeUI();
+            }
+        });
+
+        document.getElementById('btn-turret').addEventListener('click', () => {
+            if (points >= turretCost && player.turretLvl < 4) {
+                points -= turretCost;
+                turretCost = Math.floor(turretCost * 1.8);
+                player.turretLvl += 1;
+                savedTurretLvl = player.turretLvl;
+                
+                // Add new turret spaced evenly around the player
+                turrets.push(new Turret((player.turretLvl - 1) * (Math.PI / 2)));
+                
+                pointsElement.innerHTML = points;
+                updateUpgradeUI();
+            }
+        });
+
+        // --- Cheat Box Logic ---
+        cheatBtn.addEventListener('click', () => {
+            const code = cheatInput.value.toLowerCase().trim();
+            let applied = false;
+            
+            if (code === "gundown") {
+                points += 9999999;
+                pointsElement.innerHTML = points;
+                applied = true;
+            } else if (code === "maxb") {
+                player.barrels = 100;
+                savedBarrels = 100;
+                applied = true;
+            }
+
+            if (applied) {
+                updateUpgradeUI();
+                cheatInput.value = ""; // Clear input on success
+                cheatInput.style.borderColor = "#2ecc71"; // Flash green
+                setTimeout(() => cheatInput.style.borderColor = "#3498db", 1000);
+            } else {
+                cheatInput.style.borderColor = "#e74c3c"; // Flash red on failure
+                setTimeout(() => cheatInput.style.borderColor = "#3498db", 1000);
+            }
+        });
+
+        // --- Wipe Progress Logic ---
+        wipeBtn.addEventListener('click', () => {
+            wipeBtn.style.display = 'none';
+            wipeConfirmContainer.style.display = 'flex';
+        });
+
+        wipeNoBtn.addEventListener('click', () => {
+            wipeConfirmContainer.style.display = 'none';
+            wipeBtn.style.display = 'block';
+        });
+
+        wipeYesBtn.addEventListener('click', () => {
+            // Reset all saved stats
+            savedFireRateLvl = 1;
+            savedBarrels = 1;
+            savedTrackerLvl = 0;
+            savedMaxHealth = 100;
+            savedShieldLvl = 0;
+            savedSlapUnlocked = false;
+            savedBreakingUnlocked = false;
+            savedTurretLvl = 0;
+            savedPiercingLvl = 0;
+
+            // Reset all costs
+            fireRateCost = 50;
+            multiShotCost = 100;
+            trackerCost = 200;
+            healthCost = 150;
+            shieldCost = 200;
+            slapCost = 300;
+            breakingCost = 400;
+            turretCost = 400;
+            piercingCost = 500;
+
+            // Reset points
+            points = 0;
+            
+            // Wipe from local storage safely
+            try {
+                localStorage.removeItem('zombieSurvivalSave');
+            } catch(e) {
+                console.warn("Could not access local storage to wipe.");
+            }
+
+            // Reset confirmation UI
+            wipeConfirmContainer.style.display = 'none';
+            wipeBtn.style.display = 'block';
+            
+            // Restart game
+            init(true); 
+        });
+        // ----------------------
+
+        function showWaveAnnouncement(text) {
+            waveAnnouncement.innerText = text;
+            waveAnnouncement.style.opacity = 1;
+            setTimeout(() => {
+                waveAnnouncement.style.opacity = 0;
+            }, 2000);
+        }
+
+        function startWave(w) {
+            wave = w;
+            zombiesToSpawn = 10 + (wave * 5); // 15, 20, 25 zombies...
+            zombiesSpawned = 0;
+            isWaveResting = false;
+            waveTextElement.innerText = wave;
+            showWaveAnnouncement("WAVE " + wave);
+        }
+
+        function init(isRestart = false) {
+            player = new Player(canvas.width / 2, canvas.height / 2, 15, '#3498db');
+            player.fireRateLvl = savedFireRateLvl;
+            player.barrels = savedBarrels;
+            player.trackerLvl = savedTrackerLvl;
+            player.slapUnlocked = savedSlapUnlocked;
+            player.breakingUnlocked = savedBreakingUnlocked;
+            player.maxHealth = savedMaxHealth;
+            player.health = player.maxHealth;
+            player.shieldLvl = savedShieldLvl;
+            player.maxShield = player.shieldLvl * 50;
+            player.shieldHP = player.maxShield;
+            player.turretLvl = savedTurretLvl;
+            player.piercingLvl = savedPiercingLvl;
+            
+            projectiles = [];
+            enemies = [];
+            particles = [];
+            turrets = [];
+
+            // Re-create saved turrets
+            for (let i = 0; i < player.turretLvl; i++) {
+                turrets.push(new Turret(i * (Math.PI / 2)));
+            }
+            
+            if (isRestart) {
+                score = 0;
+                kills = 0;
+                wave = 1;
+            }
+            
+            frames = 0;
+            isGameOver = false;
+            isPaused = false;
+            
+            setAmmo(0); // Reset weapon view to normal
+            scoreElement.innerHTML = score;
+            pointsElement.innerHTML = points;
+            updateHealthBar();
+            
+            gameOverScreen.style.display = 'none';
+            document.getElementById('upgrade-menu').style.display = 'none';
+            document.getElementById('instructions').style.display = 'block';
+            
+            startWave(wave); // Begin wave (either 1 or loaded wave)
+            animate();
+        }
+
+        function spawnEnemies() {
+            if (isWaveResting || zombiesSpawned >= zombiesToSpawn) return;
+
+            // Spawns get slightly faster as waves progress, but caps out
+            let spawnRate = Math.max(20, 100 - (wave * 5)); 
+            
+            if (frames % spawnRate === 0) {
+                const radius = Math.random() * (20 - 12) + 12; // Radius between 12 and 20
+                let x, y;
+
+                // Spawn off-screen
+                if (Math.random() < 0.5) {
+                    x = Math.random() < 0.5 ? 0 - radius : canvas.width + radius;
+                    y = Math.random() * canvas.height;
+                } else {
+                    x = Math.random() * canvas.width;
+                    y = Math.random() < 0.5 ? 0 - radius : canvas.height + radius;
+                }
+
+                const color = '#2ecc71';
+                // Speed stays constant (random between 1 and 1.5)
+                const speed = Math.random() * 0.5 + 1; 
+                // Health increases by 1 each wave
+                const hp = 2 + (wave - 1); 
+
+                enemies.push(new Enemy(x, y, radius, color, { x: 0, y: 0 }, speed, hp));
+                zombiesSpawned++;
+            }
+        }
+
+        function createParticles(x, y, color, count) {
+            // Anti-lag protection: reduce or stop particle creation if there are too many!
+            if (particles.length > 200) count = 1; 
+            if (particles.length > 400) return; 
+
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(
+                    x, y,
+                    Math.random() * 3,
+                    color,
+                    {
+                        x: (Math.random() - 0.5) * (Math.random() * 6),
+                        y: (Math.random() - 0.5) * (Math.random() * 6)
+                    }
+                ));
+            }
+        }
+
+        function updateHealthBar() {
+            const percentage = Math.max(0, (player.health / player.maxHealth) * 100);
+            healthBar.style.width = percentage + '%';
+            
+            if (percentage > 50) healthBar.style.backgroundColor = '#4CAF50';
+            else if (percentage > 25) healthBar.style.backgroundColor = '#ff9800';
+            else healthBar.style.backgroundColor = '#f44336';
+            
+            // Update Shield Bar
+            if (player.maxShield > 0) {
+                shieldBarContainer.style.display = 'block';
+                const shieldPercentage = Math.max(0, (player.shieldHP / player.maxShield) * 100);
+                shieldBar.style.width = shieldPercentage + '%';
+            } else {
+                shieldBarContainer.style.display = 'none';
+            }
+        }
+
+        function endGame() {
+            isGameOver = true;
+            cancelAnimationFrame(animationId);
+            gameOverScreen.style.display = 'block';
+            finalScoreElement.innerHTML = score;
+            document.getElementById('instructions').style.display = 'none';
+
+            // Save their points and upgrades but reset their wave/score for next time they load
+            const gameData = {
+                score: 0, points, kills: 0, wave: 1,
+                fireRateCost, multiShotCost, trackerCost, healthCost, shieldCost, slapCost, breakingCost, turretCost, piercingCost,
+                savedFireRateLvl, savedBarrels, savedTrackerLvl, savedMaxHealth, savedShieldLvl, savedSlapUnlocked, savedBreakingUnlocked, savedTurretLvl, savedPiercingLvl
+            };
+            
+            try {
+                localStorage.setItem('zombieSurvivalSave', JSON.stringify(gameData));
+            } catch(e) {
+                console.warn("Could not save game over state.");
+            }
+        }
+
+        restartBtn.addEventListener('click', () => init(true));
+
+        function animate() {
+            if (isGameOver || isPaused) return;
+            animationId = requestAnimationFrame(animate);
+            frames++;
+
+            // Clear screen with slight trail effect
+            ctx.fillStyle = 'rgba(26, 26, 26, 0.4)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid for texture
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for(let x=0; x<canvas.width; x+=50) { ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); }
+            for(let y=0; y<canvas.height; y+=50) { ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); }
+            ctx.stroke();
+
+            // Wave Logic
+            if (!isWaveResting && zombiesSpawned >= zombiesToSpawn && enemies.length === 0) {
+                isWaveResting = true;
+                waveRestTimer = 180; // 3 seconds at 60 FPS
+                showWaveAnnouncement("WAVE CLEARED");
+            }
+            if (isWaveResting) {
+                waveRestTimer--;
+                if (waveRestTimer <= 0) {
+                    startWave(wave + 1);
+                }
+            }
+
+            player.update();
+            for (let t of turrets) t.update();
+            spawnEnemies();
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const particle = particles[i];
+                if (particle.alpha <= 0) {
+                    particles.splice(i, 1);
+                } else {
+                    particle.update();
+                }
+            }
+
+            // Update projectiles
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const projectile = projectiles[i];
+                projectile.update();
+
+                // Handle Breaking Bullet split
+                if (projectile.type === 3) {
+                    projectile.splitTimer--;
+                    if (projectile.splitTimer <= 0) {
+                        projectiles.splice(i, 1);
+                        
+                        // Spawn 3 smaller tracking bullets
+                        let baseAngle = Math.atan2(projectile.velocity.y, projectile.velocity.x);
+                        let spread = 0.4; // Radians to spread out
+                        
+                        for (let k = -1; k <= 1; k++) {
+                            let newAngle = baseAngle + (k * spread);
+                            let newVel = { x: Math.cos(newAngle) * 9, y: Math.sin(newAngle) * 9 };
+                            
+                            // Spawn as tracker bullet (type 1) with lower damage (0.5). 
+                            projectiles.push(new Projectile(projectile.x, projectile.y, 3, '#e67e22', newVel, 1, Math.max(2, player.trackerLvl), 0.5));
+                        }
+                        continue; // Bullet is destroyed, skip the off-screen bounds check
+                    }
+                }
+
+                // Remove if off screen
+                if (projectile.x + projectile.radius < 0 || 
+                    projectile.x - projectile.radius > canvas.width || 
+                    projectile.y + projectile.radius < 0 || 
+                    projectile.y - projectile.radius > canvas.height) {
+                    projectiles.splice(i, 1);
+                }
+            }
+
+            // Update enemies & check collisions
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                enemy.update();
+
+                // Collision: Player and Enemy
+                const distToPlayer = Math.hypot(player.x - enemy.x, player.y - enemy.y);
+                if (distToPlayer - enemy.radius - player.radius < 0 && enemy.attackCooldown === 0) {
+                    // Player takes damage
+                    let hasShield = player.shieldHP > 0;
+                    player.takeDamage(3); // Deal 3 damage
+                    enemy.attackCooldown = 240; // 4 seconds cooldown (at approx 60 FPS)
+                    
+                    if (hasShield) {
+                        createParticles(player.x, player.y, '#00ffff', 1); // Blue spark for shield hit
+                    } else {
+                        createParticles(player.x, player.y, '#e74c3c', 2); // Red hit effect
+                    }
+                }
+
+                // Collision: Projectile and Enemy
+                let enemyDied = false;
+                for (let j = projectiles.length - 1; j >= 0; j--) {
+                    const projectile = projectiles[j];
+                    
+                    // Skip collision check if this is a piercing bullet that already hit THIS specific zombie
+                    if (projectile.type === 4 && projectile.hitEnemies.has(enemy)) {
+                        continue;
+                    }
+
+                    const dist = Math.hypot(projectile.x - enemy.x, projectile.y - enemy.y);
+
+                    // If hit
+                    if (dist - enemy.radius - projectile.radius < 0) {
+                        // Create hit spark matching the bullet color
+                        createParticles(projectile.x, projectile.y, projectile.color, 5);
+                        
+                        enemy.health -= projectile.damage;
+                        
+                        // Handle Piercing bullet logic vs Normal bullet logic
+                        if (projectile.type === 4) {
+                            projectile.hitEnemies.add(enemy); // Remember that we hit this zombie
+                            if (projectile.pierceCount > 0) {
+                                projectile.pierceCount--; // Use up one pierce
+                            } else {
+                                projectiles.splice(j, 1); // Destroy bullet if out of pierces
+                            }
+                        } else {
+                            projectiles.splice(j, 1); // Normal bullets are destroyed immediately
+                        }
+
+                        if (enemy.health <= 0) {
+                            // Slime effect
+                            createParticles(enemy.x, enemy.y, '#1e824c', 15);
+                            createParticles(enemy.x, enemy.y, '#27ae60', 10);
+                            
+                            kills++;
+                            // More kills gives more points! Base is 10, increases by 5 every 5 kills.
+                            let pointsEarned = 10 + Math.floor(kills / 5) * 5; 
+                            
+                            score += pointsEarned;
+                            points += pointsEarned;
+                            scoreElement.innerHTML = score;
+                            pointsElement.innerHTML = points;
+                            enemies.splice(i, 1);
+                            enemyDied = true;
+                        } else {
+                            enemy.radius = Math.max(8, enemy.radius - 2); // Shrink slightly but prevent negative radius crash
+                        }
+                        
+                        // If the enemy is dead, we shouldn't check any more bullets against it
+                        if (enemyDied) break; 
+                    }
+                }
+            }
+        }
+
+        // Start Game
+        loadGame();
+        init(false);
+
+        // Auto-save every 2 seconds
+        setInterval(saveGame, 2000);
+
+    </script>
+</body>
+</html>
