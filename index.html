@@ -164,6 +164,22 @@
             transition: background-color 0.2s;
         }
         #pause-btn:hover { background-color: #2980b9; }
+        #audio-btn {
+            position: absolute;
+            top: 20px;
+            right: 170px;
+            background-color: #f39c12;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            z-index: 5;
+        }
+        #audio-btn:hover { background-color: #e67e22; }
         #upgrade-menu {
             position: absolute;
             top: 50%;
@@ -269,6 +285,7 @@
         <button id="restart-btn">Try Again</button>
     </div>
 
+    <button id="audio-btn">🔈 Enable Audio</button>
     <button id="pause-btn">Upgrades (E)</button>
 
     <div id="upgrade-menu">
@@ -350,6 +367,7 @@
 
         const cheatInput = document.getElementById('cheat-input');
         const cheatBtn = document.getElementById('cheat-btn');
+        const audioBtn = document.getElementById('audio-btn');
 
         // Game State
         let animationId;
@@ -505,6 +523,323 @@
             }
         }
 
+        // --- Audio System ---
+        let audioCtx;
+        let masterGain;
+        let delayNode;
+        let delayGain;
+        let isAudioEnabled = false;
+        let musicInterval;
+        let noteIndex = 0;
+        const musicNotes = [130.81, 155.56, 174.61, 196.00, 155.56, 130.81, 130.81, 0]; // Spooky bassline loop
+        let noiseBuffer; // Used for organic sounds (splats, crunches, thuds)
+
+        function initAudio() {
+            if (audioCtx) return;
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.15; // Set volume at 15% so it's not too loud
+            masterGain.connect(audioCtx.destination);
+
+            // Add an Echo/Delay effect to give the game "atmosphere" and depth
+            delayNode = audioCtx.createDelay();
+            delayNode.delayTime.value = 0.15; // 150ms echo
+            delayGain = audioCtx.createGain();
+            delayGain.gain.value = 0.25; // 25% echo volume
+            
+            masterGain.connect(delayNode);
+            delayNode.connect(delayGain);
+            delayGain.connect(audioCtx.destination);
+            
+            // Create a 2-second buffer of white noise for sound effects
+            const bufferSize = audioCtx.sampleRate * 2;
+            noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                output[i] = Math.random() * 2 - 1; // Random noise
+            }
+
+            isAudioEnabled = true;
+            audioBtn.innerText = '🔊 Mute Audio';
+            
+            musicInterval = setInterval(playMusicNote, 300); // Play a background note every 0.3 seconds
+        }
+
+        function toggleAudio() {
+            if (!audioCtx) {
+                initAudio();
+                return;
+            }
+            if (audioCtx.state === 'running') {
+                audioCtx.suspend();
+                isAudioEnabled = false;
+                audioBtn.innerText = '🔈 Enable Audio';
+            } else {
+                audioCtx.resume();
+                isAudioEnabled = true;
+                audioBtn.innerText = '🔊 Mute Audio';
+            }
+        }
+
+        audioBtn.addEventListener('click', toggleAudio);
+        
+        // Auto-enable audio on first interaction if they click the game screen or press a key
+        window.addEventListener('mousedown', () => { if(!audioCtx && !isPaused) initAudio(); }, {once:true});
+        window.addEventListener('keydown', () => { if(!audioCtx && !isPaused) initAudio(); }, {once:true});
+
+        function playMusicNote() {
+            if (!isAudioEnabled || audioCtx.state !== 'running') return;
+            const t = audioCtx.currentTime;
+            const freq = musicNotes[noteIndex];
+            noteIndex = (noteIndex + 1) % musicNotes.length;
+            
+            // --- Add a rhythmic hi-hat "tick" to give it a driving beat ---
+            if (noteIndex % 2 === 0) {
+                const hhNoise = audioCtx.createBufferSource();
+                hhNoise.buffer = noiseBuffer;
+                const hhFilter = audioCtx.createBiquadFilter();
+                hhFilter.type = 'highpass';
+                hhFilter.frequency.value = 8000;
+                const hhGain = audioCtx.createGain();
+                hhGain.gain.setValueAtTime(0.2, t); // Increased volume of the hi-hats!
+                hhGain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+                hhNoise.connect(hhFilter).connect(hhGain).connect(masterGain);
+                hhNoise.start(t); hhNoise.stop(t + 0.05);
+            }
+
+            if (freq === 0) return;
+
+            // --- Richer Synth Bass Patch (Square wave + Filter Envelope) ---
+            const osc = audioCtx.createOscillator();
+            const filter = audioCtx.createBiquadFilter();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'square';
+            osc.frequency.value = freq;
+            
+            // Filter envelope for a "plucky" retro synth sound
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(freq * 4, t); // Softened the peak so it's less buzzy
+            filter.frequency.exponentialRampToValueAtTime(freq * 1.5, t + 0.15);
+            
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(masterGain);
+            
+            gain.gain.setValueAtTime(0.35, t); // Increased volume of the background music!
+            gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+            
+            osc.start(t);
+            osc.stop(t + 0.2);
+        }
+
+        function playShootSound(type) {
+            if (!isAudioEnabled || !audioCtx) return;
+            const t = audioCtx.currentTime;
+            const master = audioCtx.createGain();
+            master.connect(masterGain);
+
+            if (type === 2 || type === 3 || type === 5) {
+                // Use Noise for Slap, Breaking, and Turret
+                const noiseSrc = audioCtx.createBufferSource();
+                noiseSrc.buffer = noiseBuffer;
+                const filter = audioCtx.createBiquadFilter();
+                
+                if (type === 2) { // Slap - heavy thud (Layered with a deep bass drop)
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(800, t);
+                    filter.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+                    master.gain.setValueAtTime(0.3, t); // Lowered volume
+                    master.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+                    
+                    // Layer sub-bass punch
+                    const sub = audioCtx.createOscillator();
+                    sub.type = 'sine';
+                    sub.frequency.setValueAtTime(150, t);
+                    sub.frequency.exponentialRampToValueAtTime(30, t + 0.15);
+                    sub.connect(master);
+                    sub.start(t); sub.stop(t + 0.15);
+                    
+                } else if (type === 3) { // Breaking - glass crack/snap
+                    filter.type = 'bandpass';
+                    filter.frequency.setValueAtTime(4000, t);
+                    master.gain.setValueAtTime(0.3, t); // Lowered volume
+                    master.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                } else { // Turret - light mechanical tap
+                    filter.type = 'highpass';
+                    filter.frequency.setValueAtTime(5000, t);
+                    master.gain.setValueAtTime(0.05, t); // Lowered volume
+                    master.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+                }
+                
+                noiseSrc.connect(filter);
+                filter.connect(master);
+                noiseSrc.start(t);
+                noiseSrc.stop(t + 0.2);
+            } else {
+                // Use Oscillators for Normal, Tracker, Piercing
+                const osc = audioCtx.createOscillator();
+                osc.connect(master);
+                
+                if (type === 0) { // Normal - soft pop layered with slight noise
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, t);
+                    osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+                    master.gain.setValueAtTime(0.2, t); // Lowered volume
+                    master.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                } else if (type === 1) { // Tracker - high tech chirp
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(800, t);
+                    osc.frequency.linearRampToValueAtTime(1500, t + 0.1);
+                    master.gain.setValueAtTime(0.15, t); // Lowered volume
+                    master.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                } else if (type === 4) { // Piercing - sharp laser zing
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(2500, t);
+                    osc.frequency.exponentialRampToValueAtTime(100, t + 0.15);
+                    
+                    // Add a lowpass filter sweep to the laser
+                    const lpf = audioCtx.createBiquadFilter();
+                    lpf.type = 'lowpass';
+                    lpf.frequency.setValueAtTime(8000, t);
+                    lpf.frequency.exponentialRampToValueAtTime(500, t + 0.15);
+                    
+                    osc.disconnect(master); // Re-route through filter
+                    osc.connect(lpf).connect(master);
+                    
+                    master.gain.setValueAtTime(0.12, t); // Lowered volume
+                    master.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+                }
+                
+                osc.start(t);
+                osc.stop(t + 0.2);
+            }
+        }
+
+        let lastHitTime = 0;
+        function playHitSound() {
+            // Delay by 50ms to stop lag when 100 bullets hit a zombie
+            if (!isAudioEnabled || !audioCtx || audioCtx.currentTime - lastHitTime < 0.05) return;
+            lastHitTime = audioCtx.currentTime;
+            const t = audioCtx.currentTime;
+
+            // Layer 1: Gooey Splat Noise
+            const noiseSrc = audioCtx.createBufferSource();
+            noiseSrc.buffer = noiseBuffer;
+            const noiseFilter = audioCtx.createBiquadFilter();
+            const noiseGain = audioCtx.createGain();
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.setValueAtTime(1500, t);
+            noiseGain.gain.setValueAtTime(0.15, t); // Lowered volume
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+            noiseSrc.connect(noiseFilter).connect(noiseGain).connect(masterGain);
+            
+            // Layer 2: Deep Thump
+            const sub = audioCtx.createOscillator();
+            const subGain = audioCtx.createGain();
+            sub.type = 'sine';
+            sub.frequency.setValueAtTime(150, t);
+            sub.frequency.exponentialRampToValueAtTime(40, t + 0.1);
+            subGain.gain.setValueAtTime(0.25, t); // Lowered volume
+            subGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+            sub.connect(subGain).connect(masterGain);
+            
+            noiseSrc.start(t); noiseSrc.stop(t + 0.1);
+            sub.start(t); sub.stop(t + 0.1);
+        }
+
+        let lastDeathTime = 0;
+        function playDeathSound() {
+            // Delay by 50ms to stop lag
+            if (!isAudioEnabled || !audioCtx || audioCtx.currentTime - lastDeathTime < 0.05) return;
+            lastDeathTime = audioCtx.currentTime;
+            const t = audioCtx.currentTime;
+
+            // Layer 1: Crunch noise
+            const noiseSrc = audioCtx.createBufferSource();
+            noiseSrc.buffer = noiseBuffer;
+            const noiseFilter = audioCtx.createBiquadFilter();
+            const noiseGain = audioCtx.createGain();
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.setValueAtTime(1000, t);
+            noiseFilter.frequency.linearRampToValueAtTime(100, t + 0.2);
+            noiseGain.gain.setValueAtTime(0.6, t);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+            noiseSrc.connect(noiseFilter).connect(noiseGain).connect(masterGain);
+            
+            // Layer 2: Heavy Bass Drop
+            const sub = audioCtx.createOscillator();
+            const subGain = audioCtx.createGain();
+            sub.type = 'square';
+            sub.frequency.setValueAtTime(100, t);
+            sub.frequency.exponentialRampToValueAtTime(20, t + 0.3);
+            
+            const subFilter = audioCtx.createBiquadFilter();
+            subFilter.type = 'lowpass';
+            subFilter.frequency.setValueAtTime(400, t);
+            subFilter.frequency.linearRampToValueAtTime(50, t + 0.3);
+            
+            subGain.gain.setValueAtTime(0.8, t);
+            subGain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+            
+            sub.connect(subFilter).connect(subGain).connect(masterGain);
+            
+            noiseSrc.start(t); noiseSrc.stop(t + 0.3);
+            sub.start(t); sub.stop(t + 0.3);
+        }
+
+        function playPlayerHitSound() {
+            if (!isAudioEnabled || !audioCtx) return;
+            const t = audioCtx.currentTime;
+
+            // Layer 1: Heavy damage impact crunch
+            const noiseSrc = audioCtx.createBufferSource();
+            noiseSrc.buffer = noiseBuffer;
+            const noiseFilter = audioCtx.createBiquadFilter();
+            const noiseGain = audioCtx.createGain();
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.setValueAtTime(800, t);
+            noiseFilter.frequency.exponentialRampToValueAtTime(100, t + 0.3);
+            noiseGain.gain.setValueAtTime(1.0, t);
+            noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+            noiseSrc.connect(noiseFilter).connect(noiseGain).connect(masterGain);
+            
+            // Layer 2: Ringing ears effect
+            const ring = audioCtx.createOscillator();
+            const ringGain = audioCtx.createGain();
+            ring.type = 'sine';
+            ring.frequency.setValueAtTime(3000, t);
+            ringGain.gain.setValueAtTime(0.2, t);
+            ringGain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+            ring.connect(ringGain).connect(masterGain);
+
+            noiseSrc.start(t); noiseSrc.stop(t + 0.4);
+            ring.start(t); ring.stop(t + 0.5);
+        }
+
+        function playUpgradeSound() {
+            if (!isAudioEnabled || !audioCtx) return;
+            const t = audioCtx.currentTime;
+            
+            // Play a happy 3-note magical chime
+            [400, 500, 600].forEach((freq, i) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = freq;
+                osc.connect(gain).connect(masterGain);
+                
+                gain.gain.setValueAtTime(0, t + i * 0.1);
+                gain.gain.linearRampToValueAtTime(0.2, t + i * 0.1 + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + i * 0.1 + 0.3);
+                
+                osc.start(t + i * 0.1);
+                osc.stop(t + i * 0.1 + 0.4);
+            });
+        }
+
         // Classes
         class Player {
             constructor(x, y, radius, color) {
@@ -620,6 +955,8 @@
                 // Prevent game from lagging by limiting total bullets on screen
                 if (projectiles.length > 1500) return;
 
+                playShootSound(currentAmmo); // Play sound effect once per click!
+
                 const spread = 0.15; // Spread angle in radians for multiple barrels
                 for (let i = 0; i < this.barrels; i++) {
                     const angleOffset = (i - (this.barrels - 1) / 2) * spread;
@@ -656,6 +993,9 @@
 
             takeDamage(amount) {
                 this.shieldRegenTimer = 120; // Wait 2 seconds before regenerating
+                
+                playPlayerHitSound(); // Play damage sound
+
                 if (this.shieldHP > 0) {
                     this.shieldHP -= amount;
                     if (this.shieldHP < 0) {
@@ -806,6 +1146,7 @@
                 if (this.cooldown > 0) this.cooldown--;
                 
                 if (this.cooldown === 0 && nearest && minDist < 350) {
+                    playShootSound(5); // Special turret sound
                     let velocity = { x: Math.cos(angleToEnemy) * 10, y: Math.sin(angleToEnemy) * 10 };
                     // Turret bullets deal exactly 0.5 damage
                     projectiles.push(new Projectile(this.x, this.y, 3, '#9b59b6', velocity, 0, 0, 0.5));
@@ -968,6 +1309,7 @@
 
         document.getElementById('btn-fire-rate').addEventListener('click', () => {
             if (points >= fireRateCost && player.fireRateLvl < 20) {
+                playUpgradeSound();
                 points -= fireRateCost;
                 fireRateCost = Math.floor(fireRateCost * 1.3); // Lowered multiplier so Lv 20 is reachable
                 player.fireRateLvl += 1;
@@ -979,6 +1321,7 @@
 
         document.getElementById('btn-multi-shot').addEventListener('click', () => {
             if (points >= multiShotCost && player.barrels < 100) {
+                playUpgradeSound();
                 points -= multiShotCost;
                 multiShotCost = Math.floor(multiShotCost * 1.5); // Lowered the multiplier so 100 is reachable!
                 player.barrels += 1;
@@ -990,6 +1333,7 @@
 
         document.getElementById('btn-tracker').addEventListener('click', () => {
             if (points >= trackerCost && player.trackerLvl < 3) {
+                playUpgradeSound();
                 points -= trackerCost;
                 trackerCost = Math.floor(trackerCost * 2.5);
                 player.trackerLvl += 1;
@@ -1003,6 +1347,7 @@
 
         document.getElementById('btn-slap').addEventListener('click', () => {
             if (points >= slapCost && !player.slapUnlocked) {
+                playUpgradeSound();
                 points -= slapCost;
                 player.slapUnlocked = true;
                 savedSlapUnlocked = true;
@@ -1014,6 +1359,7 @@
 
         document.getElementById('btn-breaking').addEventListener('click', () => {
             if (points >= breakingCost && !player.breakingUnlocked) {
+                playUpgradeSound();
                 points -= breakingCost;
                 player.breakingUnlocked = true;
                 savedBreakingUnlocked = true;
@@ -1025,6 +1371,7 @@
 
         document.getElementById('btn-piercing').addEventListener('click', () => {
             if (points >= piercingCost && player.piercingLvl < 10) {
+                playUpgradeSound();
                 points -= piercingCost;
                 piercingCost = Math.floor(piercingCost * 1.5);
                 player.piercingLvl += 1;
@@ -1037,6 +1384,7 @@
 
         document.getElementById('btn-health').addEventListener('click', () => {
             if (points >= healthCost) {
+                playUpgradeSound();
                 points -= healthCost;
                 healthCost = Math.floor(healthCost * 1.5);
                 player.maxHealth += 50;
@@ -1050,6 +1398,7 @@
 
         document.getElementById('btn-shield').addEventListener('click', () => {
             if (points >= shieldCost && player.shieldLvl < 3) {
+                playUpgradeSound();
                 points -= shieldCost;
                 shieldCost = Math.floor(shieldCost * 1.5);
                 player.shieldLvl += 1;
@@ -1064,6 +1413,7 @@
 
         document.getElementById('btn-turret').addEventListener('click', () => {
             if (points >= turretCost && player.turretLvl < 4) {
+                playUpgradeSound();
                 points -= turretCost;
                 turretCost = Math.floor(turretCost * 1.8);
                 player.turretLvl += 1;
@@ -1423,6 +1773,7 @@
 
                     // If hit
                     if (dist - enemy.radius - projectile.radius < 0) {
+                        playHitSound();
                         // Create hit spark matching the bullet color
                         createParticles(projectile.x, projectile.y, projectile.color, 5);
                         
@@ -1441,6 +1792,7 @@
                         }
 
                         if (enemy.health <= 0) {
+                            playDeathSound();
                             // Slime effect
                             createParticles(enemy.x, enemy.y, '#1e824c', 15);
                             createParticles(enemy.x, enemy.y, '#27ae60', 10);
