@@ -6,6 +6,7 @@ There are so many bullets!
 3. Slap bullet, this bullet acts like the regular bullet but targets any zombies that come within a close proximity (distance) of the player.
 4. Breaking Bullet, this bullet acts like the regular bullet, but when it gets far from the player, it breaks into three smaller bullets that Target zombies; these smaller bullets do less damage.
 5. Piercing bullet, this bullet has 10 upgrades, and each upgrade allows the bullet to go through more zombies before disappearing.
+6. Ice bullet, E̟̼͌̈͢͠ ̡͔͉̪̤ͩ͜͝R̸̸̡̦ͭ̑́ ̴̸͇̳̝ͮ́͠Ř̵̼̠̀͢͜ ̢̪͙̬̼̄̈͞0̴̴̹̲͔ͥͦ͢͜ ̸̖̝̱͒ͧͪ́R̢͖͓͎̲̉̒ͤ́̀͠͠ ̸̶̯̬̹͉͌̎ͤ́͞
 
 There are four upgrades to the drones, and each upgrade gives one more drone to auto shoot zombies that are near you.
 
