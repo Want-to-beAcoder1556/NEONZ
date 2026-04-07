@@ -1204,32 +1204,35 @@
                 // Tracking Logic
                 if (this.type === 1 && this.trackerLvl > 0 && enemies.length > 0) {
                     // Normal Tracker: Finds closest enemy to the BULLET
-                    let nearest = null;
-                    let minDist = Infinity;
-                    
-                    for (let e of enemies) {
-                        let d = Math.hypot(e.x - this.x, e.y - this.y);
-                        if (d < minDist) {
-                            minDist = d;
-                            nearest = e;
+                    // LAG FIX: Cache the target to prevent checking all enemies every frame
+                    if (Math.random() < 0.2 || !this.targetEnemy || this.targetEnemy.health <= 0) {
+                        this.targetEnemy = null;
+                        let minDist = Infinity;
+                        for (let e of enemies) {
+                            let d = Math.hypot(e.x - this.x, e.y - this.y);
+                            if (d < minDist) {
+                                minDist = d;
+                                this.targetEnemy = e;
+                            }
                         }
                     }
-                    if (nearest) this.steerTowards(nearest, 0.04 * this.trackerLvl);
+                    if (this.targetEnemy) this.steerTowards(this.targetEnemy, 0.04 * this.trackerLvl);
 
                 } else if (this.type === 2 && enemies.length > 0) {
                     // Slap Bullet: Finds closest enemy to the PLAYER, only if they are close
-                    let nearestToPlayer = null;
-                    let minDistToPlayer = Infinity;
-                    const slapDetectionRadius = 250; // How close a zombie needs to be to trigger homing
-                    
-                    for (let e of enemies) {
-                        let d = Math.hypot(e.x - player.x, e.y - player.y);
-                        if (d < minDistToPlayer && d < slapDetectionRadius) {
-                            minDistToPlayer = d;
-                            nearestToPlayer = e;
+                    if (Math.random() < 0.2 || !this.targetEnemy || this.targetEnemy.health <= 0) {
+                        this.targetEnemy = null;
+                        let minDistToPlayer = Infinity;
+                        const slapDetectionRadius = 250; 
+                        for (let e of enemies) {
+                            let d = Math.hypot(e.x - player.x, e.y - player.y);
+                            if (d < minDistToPlayer && d < slapDetectionRadius) {
+                                minDistToPlayer = d;
+                                this.targetEnemy = e;
+                            }
                         }
                     }
-                    if (nearestToPlayer) this.steerTowards(nearestToPlayer, 0.45); // Faster turning speed
+                    if (this.targetEnemy) this.steerTowards(this.targetEnemy, 0.45); // Faster turning speed
                 }
 
                 if (this.type === 5) {
@@ -1242,13 +1245,16 @@
                     // Red Laser (Does Everything)
                     
                     // 1. Aggressive Tracking (Tracker + Slap)
-                    let nearest = null;
-                    let minDist = Infinity;
-                    for (let e of enemies) {
-                        let d = Math.hypot(e.x - this.x, e.y - this.y);
-                        if (d < minDist) { minDist = d; nearest = e; }
+                    // LAG FIX: Limit nearest enemy calculation to save huge amounts of CPU
+                    if (Math.random() < 0.2 || !this.targetEnemy || this.targetEnemy.health <= 0) {
+                        this.targetEnemy = null;
+                        let minDist = Infinity;
+                        for (let e of enemies) {
+                            let d = Math.hypot(e.x - this.x, e.y - this.y);
+                            if (d < minDist) { minDist = d; this.targetEnemy = e; }
+                        }
                     }
-                    if (nearest) this.steerTowards(nearest, 0.45); // Fast tracking
+                    if (this.targetEnemy) this.steerTowards(this.targetEnemy, 0.45); // Fast tracking
                     
                     // 2. Spinning Tornado Effect (Spin) - Applies a corkscrew wobble to its flight path!
                     this.spinAngle += 0.5;
@@ -2054,13 +2060,16 @@
                         } else if (projectile.type === 6) {
                             projectile.splitTimer = 15; // Reset timer! Red Laser continuously drops bullets as it flies!
                             
-                            let baseAngle = Math.atan2(projectile.velocity.y, projectile.velocity.x);
-                            // Drop 2 tracking bullets out of its sides
-                            for (let k = -1; k <= 1; k += 2) {
-                                let newAngle = baseAngle + (k * 1.5);
-                                let newVel = { x: Math.cos(newAngle) * 7, y: Math.sin(newAngle) * 7 };
-                                // Spawn small, red tracking bullets that pierce through 2 zombies
-                                projectiles.push(new Projectile(projectile.x, projectile.y, 4, '#ff4444', newVel, 1, 3, 1, 2));
+                            // LAG FIX: Only drop extra bullets if we aren't lagging!
+                            if (projectiles.length < 800) {
+                                let baseAngle = Math.atan2(projectile.velocity.y, projectile.velocity.x);
+                                // Drop 2 tracking bullets out of its sides
+                                for (let k = -1; k <= 1; k += 2) {
+                                    let newAngle = baseAngle + (k * 1.5);
+                                    let newVel = { x: Math.cos(newAngle) * 7, y: Math.sin(newAngle) * 7 };
+                                    // Spawn small, red tracking bullets that pierce through 2 zombies
+                                    projectiles.push(new Projectile(projectile.x, projectile.y, 4, '#ff4444', newVel, 1, 3, 1, 2));
+                                }
                             }
                         }
                     }
@@ -2110,8 +2119,12 @@
                     // If hit
                     if (dist - enemy.radius - projectile.radius < 0) {
                         playHitSound();
-                        // Create hit spark matching the bullet color
-                        createParticles(projectile.x, projectile.y, projectile.color, 5);
+                        
+                        // LAG FIX: Don't spawn hit sparks for Red Lasers, they hit way too many things at once!
+                        if (projectile.type !== 6) {
+                            // Create hit spark matching the bullet color
+                            createParticles(projectile.x, projectile.y, projectile.color, 5);
+                        }
                         
                         enemy.health -= projectile.damage;
                         
@@ -2137,12 +2150,15 @@
                         if (enemy.health <= 0) {
                             playDeathSound();
                             // Splatter effect matching the enemy type
-                            if (enemy.isBoss) {
-                                createParticles(enemy.x, enemy.y, '#c0392b', 30);
-                                createParticles(enemy.x, enemy.y, '#ff0000', 20);
-                            } else {
-                                createParticles(enemy.x, enemy.y, '#1e824c', 15);
-                                createParticles(enemy.x, enemy.y, '#27ae60', 10);
+                            // LAG FIX: Reduce death particles if there are already a lot on screen
+                            if (particles.length < 300) {
+                                if (enemy.isBoss) {
+                                    createParticles(enemy.x, enemy.y, '#c0392b', 15);
+                                    createParticles(enemy.x, enemy.y, '#ff0000', 10);
+                                } else {
+                                    createParticles(enemy.x, enemy.y, '#1e824c', 8);
+                                    createParticles(enemy.x, enemy.y, '#27ae60', 5);
+                                }
                             }
                             
                             kills++;
