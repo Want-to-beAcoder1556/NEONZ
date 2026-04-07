@@ -23,6 +23,15 @@
             left: 20px;
             pointer-events: none;
         }
+        #copyright {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 21px;
+            pointer-events: none;
+            z-index: 10;
+        }
         #score-display {
             font-size: 24px;
             font-weight: bold;
@@ -83,7 +92,7 @@
             background-color: #00ffff;
             transition: width 0.2s;
         }
-        #game-over-screen {
+        #game-over-screen, #victory-screen {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -92,9 +101,17 @@
             background: rgba(0, 0, 0, 0.85);
             padding: 40px;
             border-radius: 15px;
-            border: 2px solid #ff4444;
             display: none;
+            z-index: 20;
+        }
+        #game-over-screen {
+            border: 2px solid #ff4444;
             box-shadow: 0 0 30px rgba(255, 0, 0, 0.3);
+        }
+        #victory-screen {
+            border: 2px solid #f1c40f;
+            box-shadow: 0 0 40px rgba(241, 196, 15, 0.4);
+            max-width: 600px;
         }
         #game-over-screen h1 {
             color: #ff4444;
@@ -102,6 +119,19 @@
             margin: 0 0 20px 0;
             text-transform: uppercase;
             letter-spacing: 2px;
+        }
+        #victory-screen h1 {
+            color: #f1c40f;
+            font-size: 42px;
+            margin: 0 0 20px 0;
+            letter-spacing: 2px;
+        }
+        #victory-screen p {
+            font-size: 24px;
+            margin-bottom: 30px;
+            line-height: 1.5;
+            color: #ecf0f1;
+            font-style: italic;
         }
         #final-score {
             font-size: 24px;
@@ -123,6 +153,13 @@
         }
         button:active {
             transform: scale(0.95);
+        }
+        #victory-restart-btn {
+            background-color: #f1c40f;
+            color: #1a1a1a;
+        }
+        #victory-restart-btn:hover {
+            background-color: #f39c12;
         }
         #instructions {
             position: absolute;
@@ -276,6 +313,8 @@
 </head>
 <body>
 
+    <div id="copyright">©</div>
+
     <div id="wave-announcement">WAVE 1</div>
 
     <div id="ui-container">
@@ -284,7 +323,7 @@
         <div id="points-display">Points: <span id="points">0</span></div>
         <div id="ammo-display">
             Ammo: <span id="current-ammo-text" style="color: #f1c40f;">Normal</span>
-            <div style="font-size: 13px; color: #aaa; font-weight: normal; margin-top: 4px;">Press 1, 2, 3, 4, 5, 6 to swap</div>
+            <div style="font-size: 13px; color: #aaa; font-weight: normal; margin-top: 4px;">Press keys 1 to 8 to swap</div>
         </div>
         <div id="health-bar-container">
             <div id="health-bar"></div>
@@ -295,13 +334,20 @@
     </div>
 
     <div id="instructions">
-        WASD to Move | Mouse to Aim | Click or Space to Shoot | 1,2,3,4,5 to Swap Weapons
+        WASD to Move | Mouse to Aim | Click or Space to Shoot | 1,2,3,4,5,6,7,8 to Swap Weapons
     </div>
 
     <div id="game-over-screen">
         <h1>Game Over!</h1>
         <div id="final-score">Final Score: <span>0</span></div>
         <button id="restart-btn">Try Again</button>
+    </div>
+
+    <!-- Victory Screen -->
+    <div id="victory-screen">
+        <h1>you did it all...</h1>
+        <p>You survived you made it but your the only one left...</p>
+        <button id="victory-restart-btn">Play Again</button>
     </div>
 
     <button id="audio-btn">🔈 Enable Audio</button>
@@ -335,6 +381,10 @@
             <button class="upgrade-btn" id="btn-piercing">Buy: <span id="cost-piercing">500</span> pts</button>
         </div>
         <div class="upgrade-row">
+            <span>Ice Bullet</span>
+            <button class="upgrade-btn" id="btn-ice">Unlock: <span id="cost-ice">600</span> pts</button>
+        </div>
+        <div class="upgrade-row">
             <span>Max Health (Lv <span id="health-lvl">1</span>)</span>
             <button class="upgrade-btn" id="btn-health">Buy: <span id="cost-health">150</span> pts</button>
         </div>
@@ -347,6 +397,15 @@
             <button class="upgrade-btn" id="btn-turret">Buy: <span id="cost-turret">400</span> pts</button>
         </div>
         <button id="resume-btn">Resume Game</button>
+
+        <!-- Wave Select Section -->
+        <div style="margin-top: 20px; border-top: 1px solid #555; padding-top: 20px; display: flex; gap: 10px; align-items: center; justify-content: space-between;">
+            <span style="font-size: 16px; color: #f1c40f;">Jump to Wave (Max: <span id="max-wave-display">1</span>)</span>
+            <div style="display: flex; gap: 10px;">
+                <input type="number" id="wave-select-input" min="1" value="1" style="width: 60px; padding: 10px; background: #222; border: 1px solid #f1c40f; color: white; border-radius: 5px; font-size: 14px;">
+                <button id="jump-wave-btn" style="background-color: #f39c12; padding: 10px 15px; font-size: 14px; border-radius: 5px;">GO</button>
+            </div>
+        </div>
 
         <!-- Cheat Box Section -->
         <div style="margin-top: 20px; border-top: 1px solid #555; padding-top: 20px; display: flex; gap: 10px;">
@@ -375,8 +434,10 @@
         const shieldBarContainer = document.getElementById('shield-bar-container');
         const shieldBar = document.getElementById('shield-bar');
         const gameOverScreen = document.getElementById('game-over-screen');
+        const victoryScreen = document.getElementById('victory-screen');
         const finalScoreElement = document.querySelector('#final-score span');
         const restartBtn = document.getElementById('restart-btn');
+        const victoryRestartBtn = document.getElementById('victory-restart-btn');
         const waveTextElement = document.getElementById('wave-text');
         const waveAnnouncement = document.getElementById('wave-announcement');
 
@@ -401,8 +462,11 @@
         let wave = 1;
         let zombiesToSpawn = 0;
         let zombiesSpawned = 0;
+        let bossSpawned = false;
         let isWaveResting = false;
         let waveRestTimer = 0;
+        let maxUnlockedWave = 1;
+        let isReverseMode = false;
         
         let fireRateCost = 50;
         let multiShotCost = 100;
@@ -413,6 +477,7 @@
         let breakingCost = 400;
         let turretCost = 400;
         let piercingCost = 500;
+        let iceCost = 600;
         
         let savedFireRateLvl = 1;
         let savedBarrels = 1;
@@ -424,16 +489,18 @@
         let savedTurretLvl = 0;
         let savedPiercingLvl = 0;
         let savedSpinUnlocked = false;
+        let savedRedLaserUnlocked = false;
+        let savedIceUnlocked = false;
 
-        let currentAmmo = 0; // 0 = Normal, 1 = Tracker, 2 = Slap, 3 = Breaking, 4 = Piercing, 5 = Spin
+        let currentAmmo = 0; // 0=Normal, 1=Tracker, 2=Slap, 3=Breaking, 4=Piercing, 5=Spin, 6=Red Laser, 7=Ice
 
         // --- Save System Logic ---
         function saveGame() {
             if (isGameOver) return; // Prevent overwriting the death reset save
             const gameData = {
-                score, points, kills, wave,
-                fireRateCost, multiShotCost, trackerCost, healthCost, shieldCost, slapCost, breakingCost, turretCost, piercingCost,
-                savedFireRateLvl, savedBarrels, savedTrackerLvl, savedMaxHealth, savedShieldLvl, savedSlapUnlocked, savedBreakingUnlocked, savedTurretLvl, savedPiercingLvl, savedSpinUnlocked
+                score, points, kills, wave, maxUnlockedWave,
+                fireRateCost, multiShotCost, trackerCost, healthCost, shieldCost, slapCost, breakingCost, turretCost, piercingCost, iceCost,
+                savedFireRateLvl, savedBarrels, savedTrackerLvl, savedMaxHealth, savedShieldLvl, savedSlapUnlocked, savedBreakingUnlocked, savedTurretLvl, savedPiercingLvl, savedSpinUnlocked, savedRedLaserUnlocked, savedIceUnlocked
             };
             
             try {
@@ -452,6 +519,7 @@
                     points = data.points || 0;
                     kills = data.kills || 0;
                     wave = data.wave || 1;
+                    maxUnlockedWave = data.maxUnlockedWave || Math.max(1, wave);
                     
                     fireRateCost = data.fireRateCost || 50;
                     multiShotCost = data.multiShotCost || 100;
@@ -462,6 +530,7 @@
                     breakingCost = data.breakingCost || 400;
                     turretCost = data.turretCost || 400;
                     piercingCost = data.piercingCost || 500;
+                    iceCost = data.iceCost || 600;
 
                     savedFireRateLvl = data.savedFireRateLvl || 1;
                     savedBarrels = data.savedBarrels || 1;
@@ -473,6 +542,8 @@
                     savedTurretLvl = data.savedTurretLvl || 0;
                     savedPiercingLvl = data.savedPiercingLvl || 0;
                     savedSpinUnlocked = data.savedSpinUnlocked === true;
+                    savedRedLaserUnlocked = data.savedRedLaserUnlocked === true;
+                    savedIceUnlocked = data.savedIceUnlocked === true;
                 } catch (e) {
                     console.error("Save file could not be loaded", e);
                 }
@@ -512,6 +583,8 @@
             if (e.key === '4' && player.breakingUnlocked) setAmmo(3);
             if (e.key === '5' && player.piercingLvl > 0) setAmmo(4);
             if (e.key === '6' && player.spinUnlocked) setAmmo(5);
+            if (e.key === '7' && player.redLaserUnlocked) setAmmo(6);
+            if (e.key === '8' && player.iceUnlocked) setAmmo(7);
 
             if (keys.hasOwnProperty(e.key)) keys[e.key] = true; 
         });
@@ -546,6 +619,12 @@
             } else if (type === 5) {
                 textEl.innerText = 'Spin [6]';
                 textEl.style.color = '#ff00ff'; // Magenta
+            } else if (type === 6) {
+                textEl.innerText = 'Red Laser [7]';
+                textEl.style.color = '#ff0000'; // Red
+            } else if (type === 7) {
+                textEl.innerText = 'Ice Bullet [8]';
+                textEl.style.color = '#a8d8ff'; // Ice Blue
             }
         }
 
@@ -705,7 +784,7 @@
                 noiseSrc.start(t);
                 noiseSrc.stop(t + 0.2);
             } else {
-                // Use Oscillators for Normal, Tracker, Piercing
+                // Use Oscillators for Normal, Tracker, Piercing, Spin, Red Laser
                 const osc = audioCtx.createOscillator();
                 osc.connect(master);
                 
@@ -743,6 +822,29 @@
                     osc.frequency.linearRampToValueAtTime(3000, t + 0.15);
                     master.gain.setValueAtTime(0.02, t); // WAY Lowered volume for the spin tornado!
                     master.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+                } else if (type === 6) { // Red Omega Laser - Heavy synth beam
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(400, t);
+                    osc.frequency.linearRampToValueAtTime(100, t + 0.3);
+                    
+                    // Layer with noise for a "burning" laser sound
+                    const noiseSrc = audioCtx.createBufferSource();
+                    noiseSrc.buffer = noiseBuffer;
+                    const noiseFilter = audioCtx.createBiquadFilter();
+                    noiseFilter.type = 'bandpass';
+                    noiseFilter.frequency.setValueAtTime(1000, t);
+                    noiseFilter.frequency.exponentialRampToValueAtTime(200, t + 0.3);
+                    noiseSrc.connect(noiseFilter).connect(master);
+                    noiseSrc.start(t); noiseSrc.stop(t + 0.3);
+
+                    master.gain.setValueAtTime(0.15, t); 
+                    master.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+                } else if (type === 7) { // Ice Bullet - crisp icy ping
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(1500, t);
+                    osc.frequency.exponentialRampToValueAtTime(3000, t + 0.1);
+                    master.gain.setValueAtTime(0.15, t);
+                    master.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
                 }
                 
                 osc.start(t);
@@ -896,6 +998,8 @@
                 this.turretLvl = savedTurretLvl;
                 this.piercingLvl = savedPiercingLvl;
                 this.spinUnlocked = savedSpinUnlocked;
+                this.redLaserUnlocked = savedRedLaserUnlocked;
+                this.iceUnlocked = savedIceUnlocked;
             }
 
             draw() {
@@ -1005,6 +1109,7 @@
                     let bulletColor = '#f1c40f';
                     let bulletRadius = 4;
                     let pierceCount = 0;
+                    let bulletDamage = 1;
 
                     if (currentAmmo === 1) {
                         bulletColor = '#00ffff'; 
@@ -1021,9 +1126,17 @@
                     } else if (currentAmmo === 5) {
                         bulletColor = '#ff00ff'; // Magenta Spin Bullet
                         bulletRadius = 5;
+                    } else if (currentAmmo === 6) {
+                        bulletColor = '#ff0000'; // Red Laser Bullet
+                        bulletRadius = 10;       // Large like slap
+                        pierceCount = 999;       // Slices through everything (Piercing)
+                        bulletDamage = 100000000; // INSANE damage! 
+                    } else if (currentAmmo === 7) {
+                        bulletColor = '#a8d8ff'; // Ice Blue
+                        bulletRadius = 6;
                     }
 
-                    projectiles.push(new Projectile(startX, startY, bulletRadius, bulletColor, velocity, currentAmmo, this.trackerLvl, 1, pierceCount));
+                    projectiles.push(new Projectile(startX, startY, bulletRadius, bulletColor, velocity, currentAmmo, this.trackerLvl, bulletDamage, pierceCount));
                 }
             }
 
@@ -1056,14 +1169,22 @@
                 this.radius = radius;
                 this.color = color;
                 this.velocity = velocity;
-                this.type = type; // 0=normal, 1=tracker, 2=slap, 3=breaking, 4=piercing, 5=spin
+                this.type = type; // 0=normal, 1=tracker, 2=slap, 3=breaking, 4=piercing, 5=spin, 6=Red Laser, 7=Ice
                 this.trackerLvl = trackerLvl;
                 this.damage = damage;
                 this.pierceCount = pierceCount;
                 this.hitEnemies = new Set(); // Tracks which enemies this bullet has already hit so it doesn't hit them 60 times a second
-                this.splitTimer = type === 3 ? 20 : 0; // Split after ~0.3 seconds (20 frames)
+                
+                // Set split timers for Breaking (Type 3) and Red Laser (Type 6)
+                if (this.type === 6) {
+                    this.splitTimer = 15; // Red laser drops smaller bullets constantly!
+                } else if (this.type === 3) {
+                    this.splitTimer = 20; // Breaking splits once
+                } else {
+                    this.splitTimer = 0;
+                }
 
-                // Used for Spin Bullet (Type 5)
+                // Used for Spin Bullet (Type 5) and Red Laser (Type 6)
                 this.baseSpeed = Math.hypot(velocity.x, velocity.y);
                 this.spinAngle = Math.atan2(velocity.y, velocity.x);
                 this.spinRadius = 25; // Starts just outside player body
@@ -1117,6 +1238,28 @@
                     this.spinRadius += this.baseSpeed; // Outward expansion speed
                     this.x = player.x + Math.cos(this.spinAngle) * this.spinRadius;
                     this.y = player.y + Math.sin(this.spinAngle) * this.spinRadius;
+                } else if (this.type === 6) {
+                    // Red Laser (Does Everything)
+                    
+                    // 1. Aggressive Tracking (Tracker + Slap)
+                    let nearest = null;
+                    let minDist = Infinity;
+                    for (let e of enemies) {
+                        let d = Math.hypot(e.x - this.x, e.y - this.y);
+                        if (d < minDist) { minDist = d; nearest = e; }
+                    }
+                    if (nearest) this.steerTowards(nearest, 0.45); // Fast tracking
+                    
+                    // 2. Spinning Tornado Effect (Spin) - Applies a corkscrew wobble to its flight path!
+                    this.spinAngle += 0.5;
+                    let currentAngle = Math.atan2(this.velocity.y, this.velocity.x);
+                    let wobbleAngle = currentAngle + Math.sin(this.spinAngle) * 0.6; // Swerve back and forth
+                    
+                    let adjustedVx = Math.cos(wobbleAngle) * this.baseSpeed;
+                    let adjustedVy = Math.sin(wobbleAngle) * this.baseSpeed;
+
+                    this.x += adjustedVx;
+                    this.y += adjustedVy;
                 } else {
                     this.x += this.velocity.x;
                     this.y += this.velocity.y;
@@ -1206,7 +1349,7 @@
         }
 
         class Enemy {
-            constructor(x, y, radius, color, velocity, speed, maxHealth = 2) {
+            constructor(x, y, radius, color, velocity, speed, maxHealth = 2, damage = 3, isBoss = false) {
                 this.x = x;
                 this.y = y;
                 this.radius = radius;
@@ -1214,8 +1357,12 @@
                 this.velocity = velocity;
                 this.speed = speed;
                 this.health = maxHealth; // Scales with waves
+                this.damage = damage;
+                this.isBoss = isBoss;
                 this.angle = 0;
                 this.attackCooldown = 0; // Cooldown timer for attacks
+                this.armColor = isBoss ? '#c0392b' : '#27ae60'; // Darker red arms for boss
+                this.strokeColor = isBoss ? '#800000' : '#1e5f22';
             }
 
             draw() {
@@ -1229,14 +1376,14 @@
                 ctx.fillStyle = this.color;
                 ctx.fill();
                 ctx.lineWidth = 2;
-                ctx.strokeStyle = '#1e5f22';
+                ctx.strokeStyle = this.strokeColor;
                 ctx.stroke();
 
                 // Arms
                 ctx.beginPath();
                 ctx.rect(this.radius * 0.3, -this.radius * 0.8, this.radius, this.radius * 0.4);
                 ctx.rect(this.radius * 0.3, this.radius * 0.4, this.radius, this.radius * 0.4);
-                ctx.fillStyle = '#27ae60';
+                ctx.fillStyle = this.armColor;
                 ctx.fill();
                 ctx.stroke();
 
@@ -1340,6 +1487,14 @@
             document.getElementById('cost-piercing').innerText = player.piercingLvl >= 10 ? "MAX" : piercingCost;
             document.getElementById('btn-piercing').disabled = points < piercingCost || player.piercingLvl >= 10;
 
+            // Ice Bullet UI
+            document.getElementById('cost-ice').innerText = player.iceUnlocked ? "UNLOCKED" : iceCost;
+            document.getElementById('btn-ice').disabled = player.iceUnlocked || points < iceCost;
+
+            // Wave Select UI
+            document.getElementById('max-wave-display').innerText = maxUnlockedWave;
+            document.getElementById('wave-select-input').max = maxUnlockedWave;
+
             const healthLvl = (player.maxHealth - 100) / 50 + 1;
             document.getElementById('health-lvl').innerText = healthLvl;
             document.getElementById('cost-health').innerText = healthCost;
@@ -1432,6 +1587,18 @@
             }
         });
 
+        document.getElementById('btn-ice').addEventListener('click', () => {
+            if (points >= iceCost && !player.iceUnlocked) {
+                playUpgradeSound();
+                points -= iceCost;
+                player.iceUnlocked = true;
+                savedIceUnlocked = true;
+                pointsElement.innerHTML = points;
+                updateUpgradeUI();
+                setAmmo(7); // Auto-equip ice bullets!
+            }
+        });
+
         document.getElementById('btn-health').addEventListener('click', () => {
             if (points >= healthCost) {
                 playUpgradeSound();
@@ -1477,6 +1644,31 @@
             }
         });
 
+        // --- Wave Select Logic ---
+        document.getElementById('jump-wave-btn').addEventListener('click', () => {
+            let targetWave = parseInt(document.getElementById('wave-select-input').value);
+            
+            if (targetWave < 0) {
+                // Activate Secret Reverse Mode!
+                isReverseMode = true;
+                document.body.style.filter = "invert(100%)";
+                targetWave = 999;
+            } else {
+                // Normal Mode
+                isReverseMode = false;
+                document.body.style.filter = "none";
+                if (isNaN(targetWave) || targetWave < 1) targetWave = 1;
+                if (targetWave > maxUnlockedWave) targetWave = maxUnlockedWave;
+            }
+            
+            // Clear current wave and jump!
+            enemies = [];
+            projectiles = [];
+            particles = [];
+            startWave(targetWave);
+            togglePause(); // Close menu to resume playing
+        });
+
         // --- Cheat Box Logic ---
         cheatBtn.addEventListener('click', () => {
             const code = cheatInput.value.toLowerCase().trim();
@@ -1497,6 +1689,17 @@
                 savedSpinUnlocked = true;
                 setAmmo(5); // Auto-equip the spin bullet
                 applied = true;
+            } else if (code === "roundever") {
+                maxUnlockedWave = 999;
+                applied = true;
+            } else if (code === "maxalllaser") {
+                player.redLaserUnlocked = true;
+                savedRedLaserUnlocked = true;
+                setAmmo(6); // Equip the ultimate red laser
+                applied = true;
+            } else if (code === "ending") {
+                applied = true;
+                showVictoryScreen();
             }
 
             if (applied) {
@@ -1533,6 +1736,8 @@
             savedTurretLvl = 0;
             savedPiercingLvl = 0;
             savedSpinUnlocked = false;
+            savedRedLaserUnlocked = false;
+            savedIceUnlocked = false;
 
             // Reset all costs
             fireRateCost = 50;
@@ -1544,9 +1749,11 @@
             breakingCost = 400;
             turretCost = 400;
             piercingCost = 500;
+            iceCost = 600;
 
-            // Reset points
+            // Reset points and progression
             points = 0;
+            maxUnlockedWave = 1;
             
             // Wipe from local storage safely
             try {
@@ -1576,9 +1783,23 @@
             wave = w;
             zombiesToSpawn = 10 + (wave * 5); // 15, 20, 25 zombies...
             zombiesSpawned = 0;
+            bossSpawned = false; // Reset boss status for the new wave
             isWaveResting = false;
             waveTextElement.innerText = wave;
-            showWaveAnnouncement("WAVE " + wave);
+            
+            if (wave % 20 === 0) {
+                showWaveAnnouncement("BOSS WAVE " + wave);
+            } else {
+                showWaveAnnouncement("WAVE " + wave);
+            }
+        }
+
+        function showVictoryScreen() {
+            isGameOver = true;
+            cancelAnimationFrame(animationId);
+            document.getElementById('upgrade-menu').style.display = 'none';
+            document.getElementById('instructions').style.display = 'none';
+            victoryScreen.style.display = 'block';
         }
 
         function init(isRestart = false) {
@@ -1596,6 +1817,8 @@
             player.turretLvl = savedTurretLvl;
             player.piercingLvl = savedPiercingLvl;
             player.spinUnlocked = savedSpinUnlocked;
+            player.redLaserUnlocked = savedRedLaserUnlocked;
+            player.iceUnlocked = savedIceUnlocked;
             
             projectiles = [];
             enemies = [];
@@ -1611,11 +1834,14 @@
                 score = 0;
                 kills = 0;
                 wave = 1;
+                isReverseMode = false;
+                document.body.style.filter = "none";
             }
             
             frames = 0;
             isGameOver = false;
             isPaused = false;
+            bossSpawned = false;
             
             setAmmo(0); // Reset weapon view to normal
             scoreElement.innerHTML = score;
@@ -1623,6 +1849,7 @@
             updateHealthBar();
             
             gameOverScreen.style.display = 'none';
+            victoryScreen.style.display = 'none';
             document.getElementById('upgrade-menu').style.display = 'none';
             document.getElementById('instructions').style.display = 'block';
             
@@ -1633,10 +1860,35 @@
         function spawnEnemies() {
             if (isWaveResting || zombiesSpawned >= zombiesToSpawn) return;
 
+            // --- Boss Spawn Logic ---
+            if (wave % 20 === 0 && !bossSpawned) {
+                const radius = 35; // Much larger than standard zombies
+                let x, y;
+
+                if (Math.random() < 0.5) {
+                    x = Math.random() < 0.5 ? 0 - radius : canvas.width + radius;
+                    y = Math.random() * canvas.height;
+                } else {
+                    x = Math.random() * canvas.width;
+                    y = Math.random() < 0.5 ? 0 - radius : canvas.height + radius;
+                }
+
+                const color = '#ff0000'; // Bright Red
+                const normalSpeed = Math.random() * 0.5 + 1; 
+                const speed = normalSpeed * 1.5; // 50% faster
+                const normalHp = 2 + (wave - 1); 
+                const hp = isReverseMode ? 1 : normalHp * 1.6; // 1 HP in reverse mode, else 60% more health
+                const damage = 3 * 1.5; // 50% more damage (4.5 damage)
+
+                enemies.push(new Enemy(x, y, radius, color, { x: 0, y: 0 }, speed, hp, damage, true));
+                bossSpawned = true;
+                zombiesSpawned++; // Count the boss towards the wave total
+            }
+
             // Spawns get slightly faster as waves progress, but caps out
             let spawnRate = Math.max(20, 100 - (wave * 5)); 
             
-            if (frames % spawnRate === 0) {
+            if (frames % spawnRate === 0 && zombiesSpawned < zombiesToSpawn) {
                 const radius = Math.random() * (20 - 12) + 12; // Radius between 12 and 20
                 let x, y;
 
@@ -1653,9 +1905,10 @@
                 // Speed stays constant (random between 1 and 1.5)
                 const speed = Math.random() * 0.5 + 1; 
                 // Health increases by 1 each wave
-                const hp = 2 + (wave - 1); 
+                const hp = isReverseMode ? 1 : 2 + (wave - 1); 
+                const damage = 3; // Standard damage
 
-                enemies.push(new Enemy(x, y, radius, color, { x: 0, y: 0 }, speed, hp));
+                enemies.push(new Enemy(x, y, radius, color, { x: 0, y: 0 }, speed, hp, damage, false));
                 zombiesSpawned++;
             }
         }
@@ -1705,9 +1958,9 @@
 
             // Save their points and upgrades but reset their wave/score for next time they load
             const gameData = {
-                score: 0, points, kills: 0, wave: 1,
+                score: 0, points, kills: 0, wave: 1, maxUnlockedWave,
                 fireRateCost, multiShotCost, trackerCost, healthCost, shieldCost, slapCost, breakingCost, turretCost, piercingCost,
-                savedFireRateLvl, savedBarrels, savedTrackerLvl, savedMaxHealth, savedShieldLvl, savedSlapUnlocked, savedBreakingUnlocked, savedTurretLvl, savedPiercingLvl
+                savedFireRateLvl, savedBarrels, savedTrackerLvl, savedMaxHealth, savedShieldLvl, savedSlapUnlocked, savedBreakingUnlocked, savedTurretLvl, savedPiercingLvl, savedSpinUnlocked, savedRedLaserUnlocked
             };
             
             try {
@@ -1718,6 +1971,7 @@
         }
 
         restartBtn.addEventListener('click', () => init(true));
+        victoryRestartBtn.addEventListener('click', () => init(true));
 
         function animate() {
             if (isGameOver || isPaused) return;
@@ -1741,11 +1995,22 @@
                 isWaveResting = true;
                 waveRestTimer = 180; // 3 seconds at 60 FPS
                 showWaveAnnouncement("WAVE CLEARED");
+                if (!isReverseMode && wave + 1 > maxUnlockedWave) {
+                    maxUnlockedWave = wave + 1; // Unlock next wave
+                }
             }
             if (isWaveResting) {
                 waveRestTimer--;
                 if (waveRestTimer <= 0) {
-                    startWave(wave + 1);
+                    if (isReverseMode) {
+                        startWave(Math.max(1, wave - 1)); // Go backwards!
+                    } else {
+                        if (wave >= 999) {
+                            showVictoryScreen(); // Trigger the victory screen if they clear 999!
+                        } else {
+                            startWave(wave + 1); // Go forwards normally
+                        }
+                    }
                 }
             }
 
@@ -1768,24 +2033,36 @@
                 const projectile = projectiles[i];
                 projectile.update();
 
-                // Handle Breaking Bullet split
-                if (projectile.type === 3) {
+                // Handle Breaking logic (Splitting) for Breaking Bullets and Red Lasers
+                if (projectile.type === 3 || projectile.type === 6) {
                     projectile.splitTimer--;
                     if (projectile.splitTimer <= 0) {
-                        projectiles.splice(i, 1);
-                        
-                        // Spawn 3 smaller tracking bullets
-                        let baseAngle = Math.atan2(projectile.velocity.y, projectile.velocity.x);
-                        let spread = 0.4; // Radians to spread out
-                        
-                        for (let k = -1; k <= 1; k++) {
-                            let newAngle = baseAngle + (k * spread);
-                            let newVel = { x: Math.cos(newAngle) * 9, y: Math.sin(newAngle) * 9 };
+                        if (projectile.type === 3) {
+                            projectiles.splice(i, 1); // Normal Breaking bullet destroys itself
                             
-                            // Spawn as tracker bullet (type 1) with lower damage (0.5). 
-                            projectiles.push(new Projectile(projectile.x, projectile.y, 3, '#e67e22', newVel, 1, Math.max(2, player.trackerLvl), 0.5));
+                            // Spawn 3 smaller tracking bullets
+                            let baseAngle = Math.atan2(projectile.velocity.y, projectile.velocity.x);
+                            let spread = 0.4; // Radians to spread out
+                            
+                            for (let k = -1; k <= 1; k++) {
+                                let newAngle = baseAngle + (k * spread);
+                                let newVel = { x: Math.cos(newAngle) * 9, y: Math.sin(newAngle) * 9 };
+                                // Spawn as tracker bullet (type 1) with lower damage (0.5). 
+                                projectiles.push(new Projectile(projectile.x, projectile.y, 3, '#e67e22', newVel, 1, Math.max(2, player.trackerLvl), 0.5));
+                            }
+                            continue; // Bullet is destroyed, skip the off-screen bounds check
+                        } else if (projectile.type === 6) {
+                            projectile.splitTimer = 15; // Reset timer! Red Laser continuously drops bullets as it flies!
+                            
+                            let baseAngle = Math.atan2(projectile.velocity.y, projectile.velocity.x);
+                            // Drop 2 tracking bullets out of its sides
+                            for (let k = -1; k <= 1; k += 2) {
+                                let newAngle = baseAngle + (k * 1.5);
+                                let newVel = { x: Math.cos(newAngle) * 7, y: Math.sin(newAngle) * 7 };
+                                // Spawn small, red tracking bullets that pierce through 2 zombies
+                                projectiles.push(new Projectile(projectile.x, projectile.y, 4, '#ff4444', newVel, 1, 3, 1, 2));
+                            }
                         }
-                        continue; // Bullet is destroyed, skip the off-screen bounds check
                     }
                 }
 
@@ -1808,7 +2085,7 @@
                 if (distToPlayer - enemy.radius - player.radius < 0 && enemy.attackCooldown === 0) {
                     // Player takes damage
                     let hasShield = player.shieldHP > 0;
-                    player.takeDamage(3); // Deal 3 damage
+                    player.takeDamage(enemy.damage); // Deal dynamic damage (Boss hits harder!)
                     enemy.attackCooldown = 240; // 4 seconds cooldown (at approx 60 FPS)
                     
                     if (hasShield) {
@@ -1823,8 +2100,8 @@
                 for (let j = projectiles.length - 1; j >= 0; j--) {
                     const projectile = projectiles[j];
                     
-                    // Skip collision check if this is a piercing bullet that already hit THIS specific zombie
-                    if (projectile.type === 4 && projectile.hitEnemies.has(enemy)) {
+                    // Skip collision check if this is a piercing bullet (or Red Laser) that already hit THIS specific zombie
+                    if ((projectile.type === 4 || projectile.type === 6) && projectile.hitEnemies.has(enemy)) {
                         continue;
                     }
 
@@ -1838,8 +2115,8 @@
                         
                         enemy.health -= projectile.damage;
                         
-                        // Handle Piercing bullet logic vs Normal bullet logic
-                        if (projectile.type === 4) {
+                        // Handle Piercing/Red Laser logic vs Normal bullet logic
+                        if (projectile.type === 4 || projectile.type === 6) {
                             projectile.hitEnemies.add(enemy); // Remember that we hit this zombie
                             if (projectile.pierceCount > 0) {
                                 projectile.pierceCount--; // Use up one pierce
@@ -1850,15 +2127,29 @@
                             projectiles.splice(j, 1); // Normal bullets are destroyed immediately
                         }
 
+                        // Apply Ice Effect
+                        if (projectile.type === 7) {
+                            enemy.speed = Math.max(0.2, enemy.speed * 0.5); // 50% slower!
+                            enemy.color = '#a8d8ff'; // Turn them icy blue!
+                            createParticles(enemy.x, enemy.y, '#ffffff', 5); // Extra snow particles
+                        }
+
                         if (enemy.health <= 0) {
                             playDeathSound();
-                            // Slime effect
-                            createParticles(enemy.x, enemy.y, '#1e824c', 15);
-                            createParticles(enemy.x, enemy.y, '#27ae60', 10);
+                            // Splatter effect matching the enemy type
+                            if (enemy.isBoss) {
+                                createParticles(enemy.x, enemy.y, '#c0392b', 30);
+                                createParticles(enemy.x, enemy.y, '#ff0000', 20);
+                            } else {
+                                createParticles(enemy.x, enemy.y, '#1e824c', 15);
+                                createParticles(enemy.x, enemy.y, '#27ae60', 10);
+                            }
                             
                             kills++;
                             // More kills gives more points! Base is 10, increases by 5 every 5 kills.
-                            let pointsEarned = 10 + Math.floor(kills / 5) * 5; 
+                            let basePoints = 10 + Math.floor(kills / 5) * 5; 
+                            // Only apply the 100,000% multiplier if the killing bullet was the Red Laser (type 6)
+                            let pointsEarned = projectile.type === 6 ? basePoints * 1000 : basePoints;
                             
                             score += pointsEarned;
                             points += pointsEarned;
@@ -1867,7 +2158,9 @@
                             enemies.splice(i, 1);
                             enemyDied = true;
                         } else {
-                            enemy.radius = Math.max(8, enemy.radius - 2); // Shrink slightly but prevent negative radius crash
+                            // Shrink slightly but prevent negative radius crash. Boss shrinks less!
+                            let minRadius = enemy.isBoss ? 25 : 8;
+                            enemy.radius = Math.max(minRadius, enemy.radius - (enemy.isBoss ? 0.5 : 2)); 
                         }
                         
                         // If the enemy is dead, we shouldn't check any more bullets against it
